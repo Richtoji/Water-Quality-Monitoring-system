@@ -24,8 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy backend application source
+# Copy backend application source and startup script
 COPY backend/app /app/app
+COPY backend/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Copy frontend static web dashboard
 COPY water-quality-dashboard /app/static
@@ -33,12 +35,12 @@ COPY water-quality-dashboard /app/static
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data
 
-# Expose backend application port (default 8080, overrides via $PORT on Render/Cloud)
 EXPOSE 8080
+EXPOSE 9000
 
-# Health check probe adapted for dynamic $PORT
+# Health check probe adapted for dynamic $PORT and $X_ZOHO_CATALYST_LISTEN_PORT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
+    CMD curl -f http://localhost:${X_ZOHO_CATALYST_LISTEN_PORT:-${PORT:-8080}}/api/health || exit 1
 
-# Launch production ASGI server with reverse-proxy header forwarding and dynamic port
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"]
+# Launch production server via startup script
+CMD ["/app/start.sh"]

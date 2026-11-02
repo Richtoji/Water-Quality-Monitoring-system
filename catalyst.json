@@ -1,0 +1,8 @@
+{
+  "appsail": {
+    "targets": [
+      "aquasense"
+    ],
+    "source": "backend"
+  }
+}
