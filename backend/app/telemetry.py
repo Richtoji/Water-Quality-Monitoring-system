@@ -166,6 +166,11 @@ class TelemetryService:
     async def get_latest_data(self) -> Dict[str, Any]:
         """Returns the latest reading, actively attempting a live fetch if stale."""
         now = time.time()
+        
+        # If we received a cloud push reading within the last 60 seconds, treat it as live!
+        if self.latest_reading and self.last_poll_time and (now - self.last_poll_time <= 60):
+            return self.latest_reading
+
         # If in cloud push mode, simply return latest reading
         if not self.esp32_url or self.esp32_url.lower() in ["none", "cloud", "push", ""]:
             return self.latest_reading or self._build_empty_reading("Awaiting Cloud Push Telemetry")
@@ -175,11 +180,14 @@ class TelemetryService:
                 return await self.fetch_esp32_now()
             except Exception as e:
                 self.is_connected = False
-                logger.warning(f"Could not reach ESP32 at {self.esp32_url}: {e}")
+                logger.debug(f"Could not reach ESP32 at {self.esp32_url}: {e}")
                 if self.latest_reading:
                     cached = dict(self.latest_reading)
-                    cached["esp32_connected"] = False
-                    cached["status_note"] = f"Using cached reading; ESP32 unreachable"
+                    if self.last_poll_time and (now - self.last_poll_time < 120):
+                        cached["esp32_connected"] = True
+                    else:
+                        cached["esp32_connected"] = False
+                        cached["status_note"] = "Using cached reading; awaiting new push"
                     return cached
                 return self._build_empty_reading()
         return self.latest_reading
