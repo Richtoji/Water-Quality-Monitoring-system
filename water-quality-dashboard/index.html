@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="css/style.css?v=8">
+    <link rel="stylesheet" href="css/style.css?v=12">
 
     <!-- Favicon (Inline SVG Droplet) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2306b6d4'%3E%3Cpath d='M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z'/%3E%3C/svg%3E">
@@ -170,7 +170,7 @@
                         </div>
                     </div>
 
-                    <!-- Completed State: Prominent Verdict Report Banner & Household Matrix -->
+                    <!-- Completed State: Prominent Verdict Report Banner, Spectrum Meter & Household Matrix -->
                     <div id="hub-result-view" class="hub-result-view" style="display: none;">
                         <!-- Primary Potability Verdict Banner -->
                         <div id="hub-verdict-banner" class="hub-verdict-banner banner-safe">
@@ -187,6 +187,64 @@
                             <div class="verdict-banner-badges">
                                 <span id="verdict-potability-pill" class="verdict-pill pill-potable">Potable (Safe to Drink)</span>
                                 <span id="verdict-palatability-pill" class="verdict-pill pill-rating">Excellent Taste</span>
+                                <button id="btn-banner-retest" class="btn-banner-retest-action" type="button" style="display: none;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path></svg>
+                                    <span>Submerge &amp; Retest</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Visual Water Safety Spectrum Gauge -->
+                        <div class="verdict-spectrum-box" id="verdict-spectrum-box">
+                            <div class="spectrum-header">
+                                <div class="spectrum-heading-group">
+                                    <span class="spectrum-pill-icon">📊</span>
+                                    <div>
+                                        <h4 class="spectrum-title">Water Safety Spectrum Gauge</h4>
+                                        <p class="spectrum-subtitle">Visual classification against BIS IS 10500:2012 drinking standards</p>
+                                    </div>
+                                </div>
+                                <div class="spectrum-status-pill" id="spectrum-status-pill">
+                                    <span class="spectrum-dot"></span>
+                                    <span id="spectrum-status-text">Safe to Drink</span>
+                                </div>
+                            </div>
+
+                            <!-- The Horizontal Gauge Track -->
+                            <div class="spectrum-meter-track">
+                                <div class="meter-segment seg-ideal" title="0 - 300 ppm: Optimal Drinking">
+                                    <span class="seg-range">0 - 300</span>
+                                    <span class="seg-label">Optimal</span>
+                                </div>
+                                <div class="meter-segment seg-good" title="300 - 500 ppm: Standard Tap">
+                                    <span class="seg-range">300 - 500</span>
+                                    <span class="seg-label">Standard</span>
+                                </div>
+                                <div class="meter-segment seg-fair" title="500 - 1000 ppm: Filtration Advised">
+                                    <span class="seg-range">500 - 1000</span>
+                                    <span class="seg-label">Filter First</span>
+                                </div>
+                                <div class="meter-segment seg-poor" title="1000 - 2000 ppm: RO Required">
+                                    <span class="seg-range">1000 - 2000</span>
+                                    <span class="seg-label">RO Filtration</span>
+                                </div>
+                                <div class="meter-segment seg-danger" title="> 2000 ppm: Unsafe Non-Potable">
+                                    <span class="seg-range">&gt; 2000</span>
+                                    <span class="seg-label">Unsafe</span>
+                                </div>
+
+                                <!-- Dynamic Marker Needle -->
+                                <div id="spectrum-pointer" class="spectrum-pointer" style="left: 0%;">
+                                    <div class="pointer-caret"></div>
+                                    <div class="pointer-badge" id="pointer-badge">0 ppm</div>
+                                </div>
+                            </div>
+
+                            <!-- Scale Guide Footnote -->
+                            <div class="spectrum-scale-guide">
+                                <div class="guide-tag tag-green"><span>●</span> Safe for Daily Drinking (≤ 500 ppm)</div>
+                                <div class="guide-tag tag-amber"><span>●</span> Treatment / Boiling Needed (500 – 2000 ppm)</div>
+                                <div class="guide-tag tag-red"><span>●</span> Unsafe for Drinking (&gt; 2000 ppm)</div>
                             </div>
                         </div>
 
@@ -219,85 +277,115 @@
                             <!-- 1. Direct Drinking -->
                             <div class="household-tile" id="tile-drinking">
                                 <div class="tile-header">
-                                    <span class="tile-icon">🚰</span>
+                                    <div class="tile-icon-box">🚰</div>
                                     <div class="tile-titles">
                                         <h4>Direct Drinking</h4>
                                         <span id="tile-badge-drinking" class="tile-verdict-badge badge-yes">Safe (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-drinking" class="tile-desc">
-                                    Mineral concentration meets drinking standards. Ideal for direct consumption.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-drinking" class="tile-desc">
+                                        Mineral concentration meets drinking standards. Ideal for direct consumption.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-drinking" class="tile-hint">BIS IS 10500:2012 &bull; Potable</span>
+                                </div>
                             </div>
 
                             <!-- 2. Cooking & Boiling -->
                             <div class="household-tile" id="tile-cooking">
                                 <div class="tile-header">
-                                    <span class="tile-icon">🍲</span>
+                                    <div class="tile-icon-box">🍲</div>
                                     <div class="tile-titles">
                                         <h4>Cooking &amp; Food Prep</h4>
                                         <span id="tile-badge-cooking" class="tile-verdict-badge badge-yes">Safe (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-cooking" class="tile-desc">
-                                    Suitable for food preparation, boiling, and beverage extraction without altering flavor.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-cooking" class="tile-desc">
+                                        Suitable for food preparation, boiling, and beverage extraction without altering flavor.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-cooking" class="tile-hint">Culinary Safe &bull; Pure Taste</span>
+                                </div>
                             </div>
 
                             <!-- 3. Bathing & Hygiene -->
                             <div class="household-tile" id="tile-bathing">
                                 <div class="tile-header">
-                                    <span class="tile-icon">🚿</span>
+                                    <div class="tile-icon-box">🚿</div>
                                     <div class="tile-titles">
                                         <h4>Bathing &amp; Hygiene</h4>
                                         <span id="tile-badge-bathing" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-bathing" class="tile-desc">
-                                    Soft to moderate minerals; gentle on skin and produces good soap lather.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-bathing" class="tile-desc">
+                                        Soft to moderate minerals; gentle on skin and produces good soap lather.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-bathing" class="tile-hint">Skin Gentle &bull; Good Lather</span>
+                                </div>
                             </div>
 
                             <!-- 4. Laundry & Washing -->
                             <div class="household-tile" id="tile-laundry">
                                 <div class="tile-header">
-                                    <span class="tile-icon">👕</span>
+                                    <div class="tile-icon-box">👕</div>
                                     <div class="tile-titles">
                                         <h4>Washing Clothes &amp; Laundry</h4>
                                         <span id="tile-badge-laundry" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-laundry" class="tile-desc">
-                                    Efficient detergent activation with minimal fabric stiffening or machine scaling.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-laundry" class="tile-desc">
+                                        Efficient detergent activation with minimal fabric stiffening or machine scaling.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-laundry" class="tile-hint">Fabric Safe &bull; No Scaling</span>
+                                </div>
                             </div>
 
                             <!-- 5. Cleaning & Mopping -->
                             <div class="household-tile" id="tile-cleaning">
                                 <div class="tile-header">
-                                    <span class="tile-icon">✨</span>
+                                    <div class="tile-icon-box">✨</div>
                                     <div class="tile-titles">
                                         <h4>Dishes &amp; Home Cleaning</h4>
                                         <span id="tile-badge-cleaning" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-cleaning" class="tile-desc">
-                                    Dries spot-free on glassware and tiles without leaving chalky mineral deposits.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-cleaning" class="tile-desc">
+                                        Dries spot-free on glassware and tiles without leaving chalky mineral deposits.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-cleaning" class="tile-hint">Spot-Free &bull; Clean Surfaces</span>
+                                </div>
                             </div>
 
                             <!-- 6. Gardening & Plants -->
                             <div class="household-tile" id="tile-gardening">
                                 <div class="tile-header">
-                                    <span class="tile-icon">🌱</span>
+                                    <div class="tile-icon-box">🌱</div>
                                     <div class="tile-titles">
                                         <h4>Gardening &amp; Irrigation</h4>
                                         <span id="tile-badge-gardening" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
                                     </div>
                                 </div>
-                                <p id="tile-desc-gardening" class="tile-desc">
-                                    Safe for household plants, lawns, and indoor greenery without salinity stress.
-                                </p>
+                                <div class="tile-body">
+                                    <p id="tile-desc-gardening" class="tile-desc">
+                                        Safe for household plants, lawns, and indoor greenery without salinity stress.
+                                    </p>
+                                </div>
+                                <div class="tile-footer">
+                                    <span id="tile-hint-gardening" class="tile-hint">Plant Friendly &bull; Low Salt</span>
+                                </div>
                             </div>
                         </div>
 

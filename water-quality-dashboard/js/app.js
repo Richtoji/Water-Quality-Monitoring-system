@@ -199,6 +199,14 @@
         verdictBannerExplanation: document.getElementById('verdict-banner-explanation'),
         verdictPotabilityPill: document.getElementById('verdict-potability-pill'),
         verdictPalatabilityPill: document.getElementById('verdict-palatability-pill'),
+        btnBannerRetest: document.getElementById('btn-banner-retest'),
+
+        // Water Safety Spectrum Gauge
+        verdictSpectrumBox: document.getElementById('verdict-spectrum-box'),
+        spectrumStatusPill: document.getElementById('spectrum-status-pill'),
+        spectrumStatusText: document.getElementById('spectrum-status-text'),
+        spectrumPointer: document.getElementById('spectrum-pointer'),
+        pointerBadge: document.getElementById('pointer-badge'),
 
         // Sample Snapshot Elements
         snapTds: document.getElementById('snap-tds'),
@@ -725,6 +733,16 @@
         showToast('Water sample analysis complete! Official verdict generated.', 'success');
     }
 
+    function computeSpectrumPct(ppm) {
+        if (!ppm || ppm <= 0) return 2;
+        if (ppm <= 300) return 2 + (ppm / 300) * 18; // 2% to 20%
+        if (ppm <= 500) return 20 + ((ppm - 300) / 200) * 20; // 20% to 40%
+        if (ppm <= 1000) return 40 + ((ppm - 500) / 500) * 20; // 40% to 60%
+        if (ppm <= 2000) return 60 + ((ppm - 1000) / 1000) * 20; // 60% to 80%
+        const excess = Math.min(1000, ppm - 2000);
+        return 80 + (excess / 1000) * 18; // 80% to 98%
+    }
+
     function renderAnalysisVerdict(data) {
         if (!elements.hubVerdictBanner) return;
 
@@ -741,38 +759,69 @@
         if (elements.snapEc) elements.snapEc.textContent = `${ec} µS/cm`;
         if (elements.snapTimestamp) elements.snapTimestamp.textContent = data.timestamp || new Date().toLocaleTimeString();
 
+        // Update Spectrum Gauge Needle & Status
+        if (elements.spectrumPointer && elements.pointerBadge) {
+            if (isSensorAir) {
+                elements.spectrumPointer.style.left = '2%';
+                elements.pointerBadge.textContent = '0 ppm (Open Air)';
+                if (elements.spectrumStatusPill) elements.spectrumStatusPill.className = 'spectrum-status-pill pill-neutral';
+                if (elements.spectrumStatusText) elements.spectrumStatusText.textContent = 'Probe Dry (Awaiting Submergence)';
+            } else {
+                const pct = computeSpectrumPct(ppm);
+                elements.spectrumPointer.style.left = `${pct}%`;
+                elements.pointerBadge.textContent = `${Math.round(ppm)} ppm`;
+                if (elements.spectrumStatusPill) {
+                    if (ppm <= 500) {
+                        elements.spectrumStatusPill.className = 'spectrum-status-pill';
+                        if (elements.spectrumStatusText) elements.spectrumStatusText.textContent = 'Safe to Drink (Potable)';
+                    } else if (ppm <= 2000) {
+                        elements.spectrumStatusPill.className = 'spectrum-status-pill pill-warn';
+                        if (elements.spectrumStatusText) elements.spectrumStatusText.textContent = 'Boil / Filter Before Drinking';
+                    } else {
+                        elements.spectrumStatusPill.className = 'spectrum-status-pill pill-danger';
+                        if (elements.spectrumStatusText) elements.spectrumStatusText.textContent = 'Unsafe for Drinking (Non-Potable)';
+                    }
+                }
+            }
+        }
+
+        // Show/hide Retest button inside banner
+        if (elements.btnBannerRetest) {
+            elements.btnBannerRetest.style.display = isSensorAir ? 'inline-flex' : 'none';
+        }
+
         if (isSensorAir) {
             elements.hubVerdictBanner.className = 'hub-verdict-banner banner-neutral';
-            elements.verdictBannerIcon.textContent = '⚪';
-            elements.verdictBannerHeadline.textContent = 'No Water Sample Detected';
-            elements.verdictBannerExplanation.textContent = 'Sensor readings indicate open air contact (0 ppm / 0.000 V). Please submerge both the TDS probe and temperature sensor into your water sample and click "Analyze Another Water Sample" below to repeat the test.';
+            elements.verdictBannerIcon.textContent = '🧪';
+            elements.verdictBannerHeadline.textContent = 'No Water Sample Detected (Probe in Air)';
+            elements.verdictBannerExplanation.textContent = 'The ESP32 TDS probe is currently in open air (0 ppm / 0.000 V). Please submerge both the TDS probe and DS18B20 temperature sensor into your water sample, then click "Submerge & Retest" above.';
             elements.verdictPotabilityPill.className = 'verdict-pill pill-warning';
             elements.verdictPotabilityPill.textContent = 'Probe Dry (Unsubmerged)';
             elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
             elements.verdictPalatabilityPill.textContent = 'Air Baseline';
 
-            setTileState('drinking', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to evaluate drinking safety.');
-            setTileState('cooking', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to check cooking suitability.');
-            setTileState('bathing', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to assess bathing and hygiene.');
-            setTileState('laundry', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to analyze laundry lather.');
-            setTileState('cleaning', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to check surface cleaning.');
-            setTileState('gardening', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to test irrigation salinity.');
+            setTileState('drinking', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to evaluate drinking safety.', 'Awaiting Water Sample');
+            setTileState('cooking', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to check cooking suitability.', 'Awaiting Water Sample');
+            setTileState('bathing', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to assess bathing and hygiene.', 'Awaiting Water Sample');
+            setTileState('laundry', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to analyze laundry lather.', 'Awaiting Water Sample');
+            setTileState('cleaning', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to check surface cleaning.', 'Awaiting Water Sample');
+            setTileState('gardening', '⏳ Submerge Probe', 'badge-conditional', 'Submerge probe into water to test irrigation salinity.', 'Awaiting Water Sample');
         } else if (ppm <= 300) {
             elements.hubVerdictBanner.className = 'hub-verdict-banner banner-safe';
             elements.verdictBannerIcon.textContent = '✅';
-            elements.verdictBannerHeadline.textContent = 'Water is Safe to Consume (Excellent Potability)';
-            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) is within the Bureau of Indian Standards (BIS IS 10500:2012) acceptable limit (≤ 500 mg/L) and meets WHO guidelines for optimum drinking palatability. Highly recommended for direct consumption, beverages, and all domestic culinary uses.`;
+            elements.verdictBannerHeadline.textContent = 'Water is 100% Safe to Consume (Optimal Quality)';
+            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) complies with the Bureau of Indian Standards (BIS IS 10500:2012) acceptable limit (≤ 500 mg/L) and meets WHO guidelines for optimum drinking palatability. Highly recommended for direct consumption, beverages, and all domestic culinary uses.`;
             elements.verdictPotabilityPill.className = 'verdict-pill pill-potable';
             elements.verdictPotabilityPill.textContent = 'Potable (Safe to Drink)';
             elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
             elements.verdictPalatabilityPill.textContent = (ppm < 50) ? 'Pure / Demineralized' : 'Excellent Taste';
 
-            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Mineral content is optimal for human hydration; crisp, pleasant palatability.');
-            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Ideal for food preparation, boiling, tea, and coffee; preserves natural culinary flavors.');
-            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Gentle on skin and scalp; creates rich soap lather and rinses cleanly.');
-            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Maximizes detergent efficiency, keeps fabrics soft, and avoids machine limescale.');
-            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Dries spot-free on glassware, bathroom tiles, and chrome fixtures.');
-            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Healthy hydration for all indoor houseplants, flowers, and sensitive herbs.');
+            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Mineral content is optimal for human hydration; crisp, pleasant palatability.', 'BIS IS 10500:2012 &bull; Safe to Drink');
+            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Ideal for food preparation, boiling, tea, and coffee; preserves natural culinary flavors.', 'Culinary Safe &bull; Pure Taste');
+            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Gentle on skin and scalp; creates rich soap lather and rinses cleanly.', 'Skin Gentle &bull; Good Lather');
+            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Maximizes detergent efficiency, keeps fabrics soft, and avoids machine limescale.', 'Fabric Safe &bull; No Scaling');
+            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Dries spot-free on glassware, bathroom tiles, and chrome fixtures.', 'Spot-Free &bull; Clean Surfaces');
+            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Healthy hydration for all indoor houseplants, flowers, and sensitive herbs.', 'Plant Friendly &bull; Low Salt');
         } else if (ppm <= 500) {
             elements.hubVerdictBanner.className = 'hub-verdict-banner banner-safe';
             elements.verdictBannerIcon.textContent = '✅';
@@ -783,28 +832,28 @@
             elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
             elements.verdictPalatabilityPill.textContent = 'Good Palatability';
 
-            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Within Indian national standard acceptable limits; safe for direct daily consumption.');
-            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Suitable for daily culinary use, boiling, and beverage preparation.');
-            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Standard domestic hardness; produces normal soap lather without skin irritation.');
-            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Normal detergent requirement; safe for washing machines and linens.');
-            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Suitable for mopping and dishwashing with minimal water spotting.');
-            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Provides essential trace minerals for lawns, garden beds, and outdoor plants.');
+            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Within Indian national standard acceptable limits; safe for direct daily consumption.', 'BIS IS 10500:2012 &bull; Safe to Drink');
+            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Suitable for daily culinary use, boiling, and beverage preparation.', 'Culinary Safe &bull; Daily Use');
+            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Standard domestic hardness; produces normal soap lather without skin irritation.', 'Standard Hardness &bull; Normal Lather');
+            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Normal detergent requirement; safe for washing machines and linens.', 'Linens &bull; Machine Safe');
+            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Suitable for mopping and dishwashing with minimal water spotting.', 'Dishwashing &bull; Mopping');
+            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Provides essential trace minerals for lawns, garden beds, and outdoor plants.', 'Irrigation &bull; Normal Salts');
         } else if (ppm <= 2000) {
             elements.hubVerdictBanner.className = 'hub-verdict-banner banner-warning';
             elements.verdictBannerIcon.textContent = '🟡';
-            elements.verdictBannerHeadline.textContent = 'Conditionally Safe (Treatment Recommended)';
+            elements.verdictBannerHeadline.textContent = 'Conditionally Safe (Filtration / Boiling Recommended)';
             elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) exceeds the acceptable limit (500 mg/L) but is within the BIS permissible limit in absence of alternate sources (up to 2000 mg/L). While usable in emergencies, domestic boiling or RO filtration is recommended to reduce hardness and improve palatability.`;
             elements.verdictPotabilityPill.className = 'verdict-pill pill-warning';
             elements.verdictPotabilityPill.textContent = 'Conditionally Potable';
             elements.verdictPalatabilityPill.className = 'verdict-pill pill-warning';
             elements.verdictPalatabilityPill.textContent = 'Fair to Poor Taste';
 
-            setTileState('drinking', 'Filtration Advised', 'badge-conditional', 'Noticeable mineral/saline aftertaste. Domestic RO or carbon filtration recommended.');
-            setTileState('cooking', 'Boiling Advised', 'badge-conditional', 'Boil before culinary use. Minerals may slightly cloud tea or affect subtle seasonings.');
-            setTileState('bathing', 'Moderate Hardness', 'badge-conditional', 'Requires more soap/shampoo to lather; may cause mild skin dryness over prolonged use.');
-            setTileState('laundry', 'Extra Soap Needed', 'badge-conditional', 'Calcium and magnesium bind detergents; may gradually stiffen fabric fibers.');
-            setTileState('cleaning', 'Mild Spotting', 'badge-conditional', 'Leaves faint white mineral haze on glassware and bathroom shower glass.');
-            setTileState('gardening', 'Hardy Plants Only', 'badge-conditional', 'Suitable for established outdoor shrubs and trees; avoid for salt-sensitive seedlings.');
+            setTileState('drinking', 'Filter First (⚠️)', 'badge-conditional', 'Noticeable mineral/saline aftertaste. Domestic RO or carbon filtration recommended.', 'Filtration Advised');
+            setTileState('cooking', 'Boil First (⚠️)', 'badge-conditional', 'Boil before culinary use. Minerals may slightly cloud tea or affect subtle seasonings.', 'Boil Before Use');
+            setTileState('bathing', 'Hard Water (⚠️)', 'badge-conditional', 'Requires more soap/shampoo to lather; may cause mild skin dryness over prolonged use.', 'Hard Water &bull; Extra Soap');
+            setTileState('laundry', 'Scale Risk (⚠️)', 'badge-conditional', 'Calcium and magnesium bind detergents; may gradually stiffen fabric fibers.', 'Fabric Stiffening Risk');
+            setTileState('cleaning', 'Mild Spots (⚠️)', 'badge-conditional', 'Leaves faint white mineral haze on glassware and bathroom shower glass.', 'Mineral Spotting');
+            setTileState('gardening', 'Hardy Only (⚠️)', 'badge-conditional', 'Suitable for established outdoor shrubs and trees; avoid for salt-sensitive seedlings.', 'Established Plants Only');
         } else {
             elements.hubVerdictBanner.className = 'hub-verdict-banner banner-danger';
             elements.verdictBannerIcon.textContent = '❌';
@@ -815,28 +864,32 @@
             elements.verdictPalatabilityPill.className = 'verdict-pill pill-danger';
             elements.verdictPalatabilityPill.textContent = 'Unacceptable Taste';
 
-            setTileState('drinking', 'UNSAFE (NO)', 'badge-no', 'Prohibited for direct drinking. High mineral density violates health standards.');
-            setTileState('cooking', 'UNSAFE (NO)', 'badge-no', 'Do not use for food or beverages; boiling further concentrates dangerous salt levels.');
-            setTileState('bathing', 'Harsh (NO)', 'badge-no', 'Excessive mineral hardness strips skin moisture and prevents proper soap lather.');
-            setTileState('laundry', 'Scaling Hazard (NO)', 'badge-no', 'Severe limescale accumulation damages washing machine heating coils.');
-            setTileState('cleaning', 'Staining Risk (NO)', 'badge-no', 'Leaves heavy chalky mineral rings and deposits on tiles, sinks, and toilets.');
-            setTileState('gardening', 'Salinity Hazard (NO)', 'badge-no', 'High osmotic salinity burns plant root tips and causes leaf yellowing.');
+            setTileState('drinking', 'UNSAFE (NO ❌)', 'badge-no', 'Prohibited for direct drinking. High mineral density violates health standards.', 'Health Hazard &bull; Do Not Drink');
+            setTileState('cooking', 'UNSAFE (NO ❌)', 'badge-no', 'Do not use for food or beverages; boiling further concentrates dangerous salt levels.', 'Do Not Use For Food');
+            setTileState('bathing', 'Harsh (NO ❌)', 'badge-no', 'Excessive mineral hardness strips skin moisture and prevents proper soap lather.', 'Severe Hardness');
+            setTileState('laundry', 'Scaling (NO ❌)', 'badge-no', 'Severe limescale accumulation damages washing machine heating coils.', 'Machine Damage Risk');
+            setTileState('cleaning', 'Staining (NO ❌)', 'badge-no', 'Leaves heavy chalky mineral rings and deposits on tiles, sinks, and toilets.', 'Chalky Residue');
+            setTileState('gardening', 'Toxic (NO ❌)', 'badge-no', 'High osmotic salinity burns plant root tips and causes leaf yellowing.', 'Salinity Toxicity');
         }
 
         evaluateWaterUsability(data);
         updateBisAssessmentSection(data);
     }
 
-    function setTileState(id, badgeText, badgeClass, descText) {
+    function setTileState(id, badgeText, badgeClass, descText, hintText) {
         const key = id.charAt(0).toUpperCase() + id.slice(1);
         const badgeElem = elements[`tileBadge${key}`];
         const descElem = elements[`tileDesc${key}`];
+        const hintElem = document.getElementById(`tile-hint-${id}`);
         if (badgeElem) {
             badgeElem.className = `tile-verdict-badge ${badgeClass}`;
             badgeElem.textContent = badgeText;
         }
         if (descElem) {
             descElem.textContent = descText;
+        }
+        if (hintElem && hintText) {
+            hintElem.innerHTML = hintText;
         }
     }
 
@@ -1871,6 +1924,9 @@
         }
         if (elements.btnReanalyze) {
             elements.btnReanalyze.addEventListener('click', resetWaterAnalysis);
+        }
+        if (elements.btnBannerRetest) {
+            elements.btnBannerRetest.addEventListener('click', resetWaterAnalysis);
         }
         if (elements.btnPrintReport) {
             elements.btnPrintReport.addEventListener('click', () => window.print());
