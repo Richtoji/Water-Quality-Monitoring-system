@@ -567,17 +567,19 @@
 
         state.history.records.slice(0, 8).forEach(rec => {
             const tr = document.createElement('tr');
-            const tempF = ((rec.temp_c * 9/5) + 32).toFixed(1);
-            const ecVal = typeof rec.ec_us_cm === 'number' ? Math.round(rec.ec_us_cm) : Math.round(rec.tds_ppm * 2);
+            const tempC = typeof rec.temp_c === 'number' ? rec.temp_c : 0;
+            const tempF = ((tempC * 9/5) + 32).toFixed(1);
+            const ecVal = typeof rec.ec_us_cm === 'number' ? Math.round(rec.ec_us_cm) : Math.round((rec.tds_ppm || 0) * 2);
+            const rawV = typeof rec.tds_raw_v === 'number' ? rec.tds_raw_v : (typeof rec.raw_v === 'number' ? rec.raw_v : 0);
             tr.innerHTML = `
                 <td>${rec.timestamp}</td>
-                <td style="color: var(--cyan-400); font-weight: 600;">${Math.round(rec.tds_ppm)} ppm</td>
+                <td style="color: var(--cyan-400); font-weight: 600;">${Math.round(rec.tds_ppm || 0)} ppm</td>
                 <td style="color: var(--cyan-300); font-weight: 600;">${ecVal} µS/cm</td>
-                <td>${rec.temp_c.toFixed(1)} °C</td>
+                <td>${tempC.toFixed(1)} °C</td>
                 <td>${tempF} °F</td>
-                <td>${rec.tds_raw_v.toFixed(3)} V</td>
-                <td><span style="color: ${rec.classificationColor}; font-weight: 500;">${rec.classification}</span></td>
-                <td><span class="status-badge ${rec.statusClass}">${rec.statusText}</span></td>
+                <td>${rawV.toFixed(3)} V</td>
+                <td><span style="color: ${rec.classificationColor || 'var(--text-muted)'}; font-weight: 500;">${rec.classification || 'Normal'}</span></td>
+                <td><span class="status-badge ${rec.statusClass || 'ok'}">${rec.statusText || 'Normal'}</span></td>
             `;
             elements.readingsTableBody.appendChild(tr);
         });
@@ -590,7 +592,9 @@
     function evaluateWaterUsability(data) {
         if (!elements.verdictMasterCard) return;
 
-        const isSensorAir = (!data.isDemo && ((typeof data.tds_raw_v === 'number' && data.tds_raw_v < 0.005) || (data.tds_ppm === 0 && (data.tds_raw_adc === undefined || data.tds_raw_adc <= 5))));
+        const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
+        const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
+        const isSensorAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
         const isFault = (data.tds_status !== 'ok');
         const ppm = typeof data.tds_ppm === 'number' ? data.tds_ppm : 0;
 
@@ -1181,6 +1185,8 @@
         // When loaded on HTTPS, always use same-origin /api/data to avoid Mixed-Content blocks
         const endpoint = isHttps ? `${currentOrigin || ''}/api/data` : `${state.esp32Url.replace(/\/+$/, '')}/api/data`;
 
+        let data;
+        let latency;
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -1192,13 +1198,19 @@
             });
 
             clearTimeout(timeoutId);
-            const latency = Math.round(performance.now() - startTime);
+            latency = Math.round(performance.now() - startTime);
 
             if (!response.ok) {
                 throw new Error(`HTTP Error: ${response.status}`);
             }
 
-            const data = await response.json();
+            data = await response.json();
+        } catch (fetchErr) {
+            handleLiveConnectionError(fetchErr);
+            return;
+        }
+
+        try {
             data.isDemo = false;
             data.latencyMs = latency;
             consecutiveErrors = 0;
@@ -1206,7 +1218,8 @@
             const isOnline = data.esp32_connected !== false;
             if (isOnline) {
                 elements.deviceStatusBadge.className = 'device-status-badge';
-                elements.deviceStatusText.textContent = `LIVE: ${data.device_ip || data.ip || 'CONNECTED'}`;
+                const devIpStr = (data.device_ip && data.device_ip !== 'cloud-push') ? data.device_ip : (data.ip || 'LIVE ESP32');
+                elements.deviceStatusText.textContent = `LIVE: ${devIpStr}`;
                 elements.diagLatency.textContent = `${latency} ms`;
                 elements.statPingBadge.textContent = `${latency} ms`;
                 elements.valConnectivityStatus.textContent = 'Online';
@@ -1224,16 +1237,18 @@
 
             renderTelemetryUI(data);
 
+            const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : 0);
             const nowLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const cls = classifyTds(data.tds_ppm, data.tds_raw_v);
+            const cls = classifyTds(data.tds_ppm, rawV);
             const ec = typeof data.ec_us_cm === 'number' ? Math.round(data.ec_us_cm) : Math.round((data.tds_ppm || 0) * 2);
 
             const record = {
                 timestamp: nowLabel,
-                tds_ppm: data.tds_ppm,
+                tds_ppm: typeof data.tds_ppm === 'number' ? data.tds_ppm : 0,
                 ec_us_cm: ec,
-                temp_c: data.temp_c,
-                tds_raw_v: data.tds_raw_v,
+                temp_c: typeof data.temp_c === 'number' ? data.temp_c : 0,
+                tds_raw_v: rawV,
+                raw_v: rawV,
                 classification: cls.classification,
                 classificationColor: cls.color,
                 statusClass: (data.tds_status === 'ok' && data.temp_status === 'ok') ? 'ok' : 'warn',
@@ -1241,11 +1256,10 @@
             };
 
             if (data.tds_status === 'ok' && data.temp_status === 'ok') {
-                updateChartData(nowLabel, data.tds_ppm, data.temp_c, record);
+                updateChartData(nowLabel, record.tds_ppm, record.temp_c, record);
             }
-
-        } catch (err) {
-            handleLiveConnectionError(err);
+        } catch (uiErr) {
+            console.error('Error rendering live telemetry data:', uiErr);
         }
     }
 
@@ -1350,9 +1364,11 @@
             elements.diagTds.style.color = 'var(--rose-400)';
         }
 
-        if (typeof data.tds_raw_v === 'number') {
-            const rawAdc = (typeof data.tds_raw_adc === 'number') ? ` (ADC: ${data.tds_raw_adc})` : '';
-            elements.valTdsVoltage.textContent = `${data.tds_raw_v.toFixed(3)} V${rawAdc}`;
+        const displayRawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
+        const displayRawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
+        if (displayRawV !== null) {
+            const rawAdcStr = (displayRawAdc !== null) ? ` (ADC: ${displayRawAdc})` : '';
+            elements.valTdsVoltage.textContent = `${displayRawV.toFixed(3)} V${rawAdcStr}`;
         }
         if (elements.valTdsEc) {
             const ec = typeof data.ec_us_cm === 'number' ? data.ec_us_cm : Math.round((data.tds_ppm || 0) * 2);
@@ -1387,7 +1403,11 @@
         }
 
         // Connectivity details
-        elements.valDeviceIp.textContent = data.device_ip || data.ip || 'ESP32 Live Stream';
+        if (data.device_ip === 'cloud-push' || data.device_ip === 'ESP32 (Live Cloud Push)') {
+            elements.valDeviceIp.textContent = 'ESP32 Cloud Stream';
+        } else {
+            elements.valDeviceIp.textContent = data.device_ip || data.ip || 'ESP32 Live Stream';
+        }
         if (typeof data.wifi_rssi === 'number') {
             elements.valWifiRssi.textContent = `${data.wifi_rssi} dBm`;
         } else {
@@ -1396,7 +1416,7 @@
         if (typeof data.uptime_s === 'number') {
             elements.valUptime.textContent = formatUptime(data.uptime_s);
         } else {
-            elements.valUptime.textContent = 'Streaming';
+            elements.valUptime.textContent = 'Live Stream';
         }
 
         // Compute Actionable Usability Verdict (Drinking, Boiling, Household)
@@ -1559,9 +1579,11 @@
         if (state.history.records.length > 0) {
             for (let i = 0; i < state.history.records.length; i++) {
                 const r = state.history.records[i];
-                const tempF = ((r.temp_c * 9/5) + 32).toFixed(1);
-                const ec = typeof r.ec_us_cm === 'number' ? Math.round(r.ec_us_cm) : Math.round(r.tds_ppm * 2);
-                csv += `"${r.timestamp}",${Math.round(r.tds_ppm)},${ec},${r.temp_c.toFixed(1)},${tempF},${r.tds_raw_v.toFixed(3)},"${r.classification}","${r.statusText}"\n`;
+                const tempC = typeof r.temp_c === 'number' ? r.temp_c : 0;
+                const tempF = ((tempC * 9/5) + 32).toFixed(1);
+                const ec = typeof r.ec_us_cm === 'number' ? Math.round(r.ec_us_cm) : Math.round((r.tds_ppm || 0) * 2);
+                const rawV = (typeof r.tds_raw_v === 'number') ? r.tds_raw_v : ((typeof r.raw_v === 'number') ? r.raw_v : 0);
+                csv += `"${r.timestamp}",${Math.round(r.tds_ppm || 0)},${ec},${tempC.toFixed(1)},${tempF},${rawV.toFixed(3)},"${r.classification || ''}","${r.statusText || ''}"\n`;
             }
         } else {
             for (let i = 0; i < state.history.timestamps.length; i++) {

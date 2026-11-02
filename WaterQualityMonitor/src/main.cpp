@@ -271,11 +271,16 @@ void pushTelemetryToCloud() {
     http.begin(CLOUD_BACKEND_URL);
     http.addHeader("Content-Type", "application/json");
 
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<384> doc;
     doc["tds_ppm"] = currentTdsPpm;
     doc["temp_c"] = currentTemperatureC;
     doc["raw_v"] = currentTdsRawVoltage;
     doc["raw_adc"] = currentTdsRawAdc;
+    doc["tds_raw_v"] = currentTdsRawVoltage;
+    doc["tds_raw_adc"] = currentTdsRawAdc;
+    doc["uptime_s"] = millis() / 1000;
+    doc["wifi_rssi"] = WiFi.isConnected() ? WiFi.RSSI() : -45;
+    doc["ip"] = WiFi.isConnected() ? WiFi.localIP().toString() : "ESP32";
     doc["tds_status"] = tdsSensorValid ? "ok" : "warn";
     doc["temp_status"] = tempSensorConnected ? "ok" : "disconnected";
 

@@ -56,11 +56,17 @@ class TelemetryService:
 
     def update_pushed_reading(self, payload: TelemetryReading, palatability: str, bis: str) -> Dict[str, Any]:
         """Updates in-memory state when telemetry is pushed from ESP32 or an external agent."""
+        volts = payload.raw_v if payload.raw_v is not None else payload.tds_raw_v
+        adc = payload.raw_adc if payload.raw_adc is not None else payload.tds_raw_adc
         enriched = {
             "tds_ppm": payload.tds_ppm,
             "temp_c": payload.temp_c,
-            "raw_v": payload.raw_v,
-            "raw_adc": payload.raw_adc,
+            "raw_v": volts if volts is not None else 0.0,
+            "raw_adc": adc if adc is not None else 0,
+            "tds_raw_v": volts if volts is not None else 0.0,
+            "tds_raw_adc": adc if adc is not None else 0,
+            "uptime_s": payload.uptime_s,
+            "wifi_rssi": payload.wifi_rssi,
             "tds_status": payload.tds_status,
             "temp_status": payload.temp_status,
             "palatability": palatability,
@@ -68,7 +74,7 @@ class TelemetryService:
             "timestamp": datetime.now().isoformat(),
             "esp32_connected": True,
             "latency_ms": 0,
-            "device_ip": "cloud-push"
+            "device_ip": payload.ip or "ESP32 (Live Cloud Push)"
         }
         self.latest_reading = enriched
         self.is_connected = True
@@ -113,8 +119,10 @@ class TelemetryService:
         enriched = {
             "tds_ppm": tds,
             "temp_c": temp,
-            "raw_v": raw_v,
-            "raw_adc": raw_adc,
+            "raw_v": raw_v if raw_v is not None else 0.0,
+            "raw_adc": raw_adc if raw_adc is not None else 0,
+            "tds_raw_v": raw_v if raw_v is not None else 0.0,
+            "tds_raw_adc": raw_adc if raw_adc is not None else 0,
             "tds_status": tds_status,
             "temp_status": temp_status,
             "palatability": palatability,
@@ -153,6 +161,8 @@ class TelemetryService:
             "temp_c": 0.0,
             "raw_v": 0.0,
             "raw_adc": 0,
+            "tds_raw_v": 0.0,
+            "tds_raw_adc": 0,
             "tds_status": "offline",
             "temp_status": "offline",
             "palatability": "Unknown",

@@ -10,6 +10,11 @@ class TelemetryReading(BaseModel):
     temp_c: float = Field(..., description="Water temperature in Celsius")
     raw_v: Optional[float] = Field(None, description="Raw analog voltage reading from ADC")
     raw_adc: Optional[int] = Field(None, description="Raw 12-bit ADC integer value")
+    tds_raw_v: Optional[float] = Field(None, description="Alias for raw_v")
+    tds_raw_adc: Optional[int] = Field(None, description="Alias for raw_adc")
+    uptime_s: Optional[int] = Field(None, description="Device uptime in seconds")
+    wifi_rssi: Optional[int] = Field(None, description="Device Wi-Fi RSSI in dBm")
+    ip: Optional[str] = Field(None, description="Device local IP address")
     tds_status: str = Field("ok", description="Status string for TDS sensor (ok/warn/err)")
     temp_status: str = Field("ok", description="Status string for Temp sensor (ok/warn/err)")
 
