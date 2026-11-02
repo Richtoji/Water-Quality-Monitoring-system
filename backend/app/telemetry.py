@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 import json
+
 try:
     import httpx
     HAS_HTTPX = True
@@ -53,8 +54,35 @@ class TelemetryService:
         else:
             return "Exceeds Permissible Limit (> 2000 mg/L)"
 
+    def update_pushed_reading(self, payload: TelemetryReading, palatability: str, bis: str) -> Dict[str, Any]:
+        """Updates in-memory state when telemetry is pushed from ESP32 or an external agent."""
+        enriched = {
+            "tds_ppm": payload.tds_ppm,
+            "temp_c": payload.temp_c,
+            "raw_v": payload.raw_v,
+            "raw_adc": payload.raw_adc,
+            "tds_status": payload.tds_status,
+            "temp_status": payload.temp_status,
+            "palatability": palatability,
+            "bis_compliance": bis,
+            "timestamp": datetime.now().isoformat(),
+            "esp32_connected": True,
+            "latency_ms": 0,
+            "device_ip": "cloud-push"
+        }
+        self.latest_reading = enriched
+        self.is_connected = True
+        self.last_poll_time = time.time()
+        self.last_latency_ms = 0
+        return enriched
+
     async def fetch_esp32_now(self) -> Dict[str, Any]:
         """Performs a direct async HTTP fetch from the ESP32 /api/data endpoint."""
+        if not self.esp32_url or self.esp32_url.lower() in ["none", "cloud", "push", ""]:
+            if self.latest_reading:
+                return self.latest_reading
+            return self._build_empty_reading("Awaiting Cloud Push Telemetry")
+
         url = f"{self.esp32_url}/api/data"
         start = time.perf_counter()
         
@@ -119,9 +147,29 @@ class TelemetryService:
 
         return enriched
 
+    def _build_empty_reading(self, bis_text: str = "Awaiting Live Telemetry") -> Dict[str, Any]:
+        return {
+            "tds_ppm": 0.0,
+            "temp_c": 0.0,
+            "raw_v": 0.0,
+            "raw_adc": 0,
+            "tds_status": "offline",
+            "temp_status": "offline",
+            "palatability": "Unknown",
+            "bis_compliance": bis_text,
+            "timestamp": datetime.now().isoformat(),
+            "esp32_connected": False,
+            "latency_ms": None,
+            "device_ip": self.esp32_url.replace("http://", "").replace("https://", "") if self.esp32_url else "cloud"
+        }
+
     async def get_latest_data(self) -> Dict[str, Any]:
         """Returns the latest reading, actively attempting a live fetch if stale."""
         now = time.time()
+        # If in cloud push mode, simply return latest reading
+        if not self.esp32_url or self.esp32_url.lower() in ["none", "cloud", "push", ""]:
+            return self.latest_reading or self._build_empty_reading("Awaiting Cloud Push Telemetry")
+
         if not self.latest_reading or (self.last_poll_time and (now - self.last_poll_time > self.poll_interval)):
             try:
                 return await self.fetch_esp32_now()
@@ -129,35 +177,22 @@ class TelemetryService:
                 self.is_connected = False
                 logger.warning(f"Could not reach ESP32 at {self.esp32_url}: {e}")
                 if self.latest_reading:
-                    # Return cached reading with offline flag
                     cached = dict(self.latest_reading)
                     cached["esp32_connected"] = False
-                    cached["status_note"] = f"Using cached reading; ESP32 unreachable: {e}"
+                    cached["status_note"] = f"Using cached reading; ESP32 unreachable"
                     return cached
-                return {
-                    "tds_ppm": 0.0,
-                    "temp_c": 0.0,
-                    "raw_v": 0.0,
-                    "raw_adc": 0,
-                    "tds_status": "offline",
-                    "temp_status": "offline",
-                    "palatability": "Unknown",
-                    "bis_compliance": "Awaiting Live Telemetry",
-                    "timestamp": datetime.now().isoformat(),
-                    "esp32_connected": False,
-                    "latency_ms": None,
-                    "device_ip": self.esp32_url.replace("http://", "").replace("https://", "")
-                }
+                return self._build_empty_reading()
         return self.latest_reading
 
     async def _poll_loop(self):
         """Continuous background poller keeping telemetry cache fresh."""
         while self._running:
-            try:
-                await self.fetch_esp32_now()
-            except Exception as e:
-                self.is_connected = False
-                logger.debug(f"Background poll tick: ESP32 offline ({e})")
+            if self.esp32_url and self.esp32_url.lower() not in ["none", "cloud", "push", ""]:
+                try:
+                    await self.fetch_esp32_now()
+                except Exception as e:
+                    self.is_connected = False
+                    logger.debug(f"Background poll tick: ESP32 offline ({e})")
             await asyncio.sleep(self.poll_interval)
 
     def start_background_polling(self):

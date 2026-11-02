@@ -5,8 +5,9 @@ Serves the Water Quality Dashboard frontend and provides REST APIs for telemetry
 
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse
 
@@ -30,6 +31,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# GZip compression middleware for rapid asset loading
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 # Enable CORS for all origins
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +42,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Production security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
 
 # ---------------------------------------------------------------------------
 # API Endpoints
@@ -64,7 +77,11 @@ async def push_telemetry(payload: TelemetryReading):
         palatability=palatability,
         potability=bis
     )
-    return {"status": "success", "id": rec_id, "palatability": palatability, "bis_compliance": bis}
+    
+    # Update live in-memory telemetry state for immediate dashboard reflection
+    enriched = telemetry_service.update_pushed_reading(payload, palatability, bis)
+    
+    return {"status": "success", "id": rec_id, "data": enriched}
 
 @app.get("/api/history", summary="Query Telemetry History")
 async def get_telemetry_history(
@@ -129,10 +146,8 @@ async def update_config(config: ConfigUpdate):
 # Static Web Dashboard Frontend Mount
 # ---------------------------------------------------------------------------
 
-# Locate static dashboard directory (inside container /app/static, or local development)
 STATIC_DIR = os.getenv("STATIC_DIR", "/app/static")
 if not os.path.exists(STATIC_DIR):
-    # Fallback to local workspace development path
     STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "water-quality-dashboard"))
 
 if os.path.exists(STATIC_DIR):

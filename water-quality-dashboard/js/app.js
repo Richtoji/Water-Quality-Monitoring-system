@@ -18,12 +18,18 @@
         defaultMode: 'live'
     };
 
-    // Use current IP or localStorage override
+    // Detect hosted origin & HTTPS protocol
+    const currentOrigin = (window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : '';
+    const isHttps = window.location.protocol === 'https:';
+
+    // Use current origin if hosted, or saved override, or fallback to default ESP32 LAN IP
     const savedUrl = localStorage.getItem('waterIntel_esp32_url');
-    const isStale = !savedUrl || savedUrl.includes('192.168.') || savedUrl.includes('10.245.163.') || savedUrl.includes('127.0.0.1');
-    const initialUrl = isStale ? DEFAULT_CONFIG.esp32Url : savedUrl;
-    if (isStale) {
-        localStorage.setItem('waterIntel_esp32_url', DEFAULT_CONFIG.esp32Url);
+    let initialUrl;
+    if (isHttps) {
+        initialUrl = (savedUrl && savedUrl.startsWith('https://')) ? savedUrl : (currentOrigin || DEFAULT_CONFIG.esp32Url);
+    } else {
+        const isStale = !savedUrl || savedUrl.includes('192.168.') || savedUrl.includes('10.245.163.') || savedUrl.includes('127.0.0.1');
+        initialUrl = isStale ? (currentOrigin || DEFAULT_CONFIG.esp32Url) : savedUrl;
     }
 
     const state = {
@@ -1500,7 +1506,28 @@
         }
     }
 
-    function exportToCsv() {
+    async function exportToCsv() {
+        // In production with backend available, try downloading complete database history
+        const origin = (window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : '';
+        if (origin) {
+            try {
+                const apiRes = await fetch(`${origin}/api/export`);
+                if (apiRes.ok) {
+                    const blob = await apiRes.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `aquasense_database_telemetry_${Date.now()}.csv`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    showToast('Full telemetry archive downloaded from database.', 'success');
+                    return;
+                }
+            } catch (e) {
+                // Fallback to client session export
+            }
+        }
+
         if (!state.history.records.length && !state.history.timestamps.length) {
             showToast('No telemetry points available to export.', 'warn');
             return;
@@ -1655,6 +1682,43 @@
         setupSimulationPresets();
     }
 
+    async function loadInitialHistory() {
+        const origin = (window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : '';
+        if (!origin) return;
+        try {
+            const ctrl = new AbortController();
+            const timeoutId = setTimeout(() => ctrl.abort(), 2000);
+            const res = await fetch(`${origin}/api/history?limit=25`, { signal: ctrl.signal });
+            clearTimeout(timeoutId);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.records && data.records.length > 0) {
+                const reversed = data.records.slice().reverse();
+                for (const r of reversed) {
+                    const timeLabel = new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) || r.timestamp;
+                    const cls = classifyTds(r.tds_ppm, r.raw_v);
+                    const ec = Math.round(r.tds_ppm * 2);
+                    const record = {
+                        timestamp: timeLabel,
+                        tds_ppm: r.tds_ppm,
+                        ec_us_cm: ec,
+                        temp_c: r.temp_c,
+                        tds_raw_v: r.raw_v || 0,
+                        classification: cls.classification,
+                        classificationColor: cls.color,
+                        statusClass: (r.tds_status === 'ok' && r.temp_status === 'ok') ? 'ok' : 'warn',
+                        statusText: (r.tds_status === 'ok' && r.temp_status === 'ok') ? 'Normal' : 'Sensor Alert'
+                    };
+                    updateChartData(timeLabel, r.tds_ppm, r.temp_c, record);
+                }
+                const latest = data.records[0];
+                renderTelemetryUI(latest);
+            }
+        } catch (e) {
+            // Silently fall through to live poll
+        }
+    }
+
     // ==========================================================================
     // Bootstrap
     // ==========================================================================
@@ -1662,6 +1726,7 @@
         initAmbientCanvas();
         initChart();
         attachEventListeners();
+        loadInitialHistory();
         setMode(state.mode);
     });
 

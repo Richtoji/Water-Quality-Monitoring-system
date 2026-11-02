@@ -1,6 +1,7 @@
 """
 SQLite Database module for AquaSense Telemetry.
 Stores live sensor measurements, provides history querying, statistics, and CSV export.
+Optimized for production with Write-Ahead Logging (WAL) and automatic rolling data retention.
 """
 
 import sqlite3
@@ -8,6 +9,7 @@ import os
 from typing import List, Dict, Any, Optional
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "telemetry.db"))
+MAX_STORED_READINGS = int(os.getenv("MAX_STORED_READINGS", "10000"))
 
 def get_connection() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
@@ -16,8 +18,10 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 def init_db():
-    """Initializes the database schema if not already present."""
+    """Initializes the database schema with WAL mode and performance indexes."""
     with get_connection() as conn:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS readings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +49,7 @@ def insert_reading(
     palatability: Optional[str] = None,
     potability: Optional[str] = None
 ) -> int:
-    """Inserts a new telemetry record into the database."""
+    """Inserts a new telemetry record and enforces rolling retention."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -53,8 +57,19 @@ def insert_reading(
                 tds_ppm, temp_c, raw_v, raw_adc, tds_status, temp_status, palatability, potability
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (tds_ppm, temp_c, raw_v, raw_adc, tds_status, temp_status, palatability, potability))
+        new_id = cursor.lastrowid
+
+        # Periodically prune old records to prevent unbounded disk growth
+        if new_id % 50 == 0:
+            conn.execute("""
+                DELETE FROM readings 
+                WHERE id NOT IN (
+                    SELECT id FROM readings ORDER BY id DESC LIMIT ?
+                )
+            """, (MAX_STORED_READINGS,))
+
         conn.commit()
-        return cursor.lastrowid
+        return new_id
 
 def get_history(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
     """Returns the most recent telemetry readings ordered newest first."""
@@ -110,13 +125,13 @@ def export_csv_data() -> str:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, timestamp, tds_ppm, temp_c, raw_v, tds_status, temp_status, palatability
+            SELECT id, timestamp, tds_ppm, temp_c, raw_v, tds_status, temp_status, palatability, potability
             FROM readings
             ORDER BY id ASC
         """)
         rows = cursor.fetchall()
 
-    lines = ["ID,Timestamp,TDS_ppm,Temperature_C,Raw_Voltage_V,TDS_Status,Temp_Status,Palatability"]
+    lines = ["ID,Timestamp,TDS_ppm,Temperature_C,Raw_Voltage_V,TDS_Status,Temp_Status,Palatability,BIS_Assessment"]
     for r in rows:
-        lines.append(f"{r['id']},{r['timestamp']},{r['tds_ppm']},{r['temp_c']},{r['raw_v']},{r['tds_status']},{r['temp_status']},{r['palatability'] or ''}")
+        lines.append(f"{r['id']},{r['timestamp']},{r['tds_ppm']},{r['temp_c']},{r['raw_v']},{r['tds_status']},{r['temp_status']},{r['palatability'] or ''},{r['potability'] or ''}")
     return "\n".join(lines)

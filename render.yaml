@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: aquasense-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ESP32_URL
+        value: "http://10.189.27.140"
+      - key: POLL_INTERVAL_SEC
+        value: "3"
+      - key: MAX_STORED_READINGS
+        value: "10000"

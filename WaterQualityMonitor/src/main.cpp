@@ -4,6 +4,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 #include "credentials.h"
 
@@ -256,6 +257,42 @@ void connectWifi() {
 }
 
 // ==============================================================================
+// Optional Cloud Push Engine (When CLOUD_BACKEND_URL is defined)
+// ==============================================================================
+#ifdef CLOUD_BACKEND_URL
+unsigned long lastCloudPushTime = 0;
+const unsigned long CLOUD_PUSH_INTERVAL_MS = 3000;
+
+void pushTelemetryToCloud() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    if (String(CLOUD_BACKEND_URL).length() == 0 || String(CLOUD_BACKEND_URL) == "YOUR_CLOUD_BACKEND_URL") return;
+
+    HTTPClient http;
+    http.begin(CLOUD_BACKEND_URL);
+    http.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<256> doc;
+    doc["tds_ppm"] = currentTdsPpm;
+    doc["temp_c"] = currentTemperatureC;
+    doc["raw_v"] = currentTdsRawVoltage;
+    doc["raw_adc"] = currentTdsRawAdc;
+    doc["tds_status"] = tdsSensorValid ? "ok" : "warn";
+    doc["temp_status"] = tempSensorConnected ? "ok" : "disconnected";
+
+    String requestBody;
+    serializeJson(doc, requestBody);
+
+    int httpCode = http.POST(requestBody);
+    if (httpCode > 0) {
+        Serial.printf("[Cloud Push] Success (%d)\n", httpCode);
+    } else {
+        Serial.printf("[Cloud Push] Error: %s\n", http.errorToString(httpCode).c_str());
+    }
+    http.end();
+}
+#endif
+
+// ==============================================================================
 // Arduino Setup & Loop
 // ==============================================================================
 void setup() {
@@ -305,6 +342,14 @@ void loop() {
         lastSensorReadTime = currentMillis;
         readSensors();
     }
+
+#ifdef CLOUD_BACKEND_URL
+    // Periodic cloud push if enabled
+    if (currentMillis - lastCloudPushTime >= CLOUD_PUSH_INTERVAL_MS) {
+        lastCloudPushTime = currentMillis;
+        pushTelemetryToCloud();
+    }
+#endif
 
     // Background Wi-Fi health check & reconnection
     if (currentMillis - lastWifiCheckTime >= WIFI_CHECK_INTERVAL_MS) {
