@@ -167,12 +167,12 @@ class TelemetryService:
         """Returns the latest reading, actively attempting a live fetch if stale."""
         now = time.time()
         
-        # If we received a cloud push reading within the last 60 seconds, treat it as live!
-        if self.latest_reading and self.last_poll_time and (now - self.last_poll_time <= 60):
+        # If we received a cloud push reading within the last 120 seconds, treat it as live!
+        if self.latest_reading and self.last_poll_time and (now - self.last_poll_time <= 120):
             return self.latest_reading
 
-        # If in cloud push mode, simply return latest reading
-        if not self.esp32_url or self.esp32_url.lower() in ["none", "cloud", "push", ""]:
+        # If in cloud push mode or running in Catalyst AppSail cloud, simply return latest reading
+        if not self.esp32_url or self.esp32_url.lower() in ["none", "cloud", "push", ""] or os.getenv("X_ZOHO_CATALYST_LISTEN_PORT"):
             return self.latest_reading or self._build_empty_reading("Awaiting Cloud Push Telemetry")
 
         if not self.latest_reading or (self.last_poll_time and (now - self.last_poll_time > self.poll_interval)):
@@ -195,7 +195,8 @@ class TelemetryService:
     async def _poll_loop(self):
         """Continuous background poller keeping telemetry cache fresh."""
         while self._running:
-            if self.esp32_url and self.esp32_url.lower() not in ["none", "cloud", "push", ""]:
+            # In cloud environments, ESP32 pushes to us, so we don't block polling a local LAN IP
+            if not os.getenv("X_ZOHO_CATALYST_LISTEN_PORT") and self.esp32_url and self.esp32_url.lower() not in ["none", "cloud", "push", ""]:
                 try:
                     await self.fetch_esp32_now()
                 except Exception as e:

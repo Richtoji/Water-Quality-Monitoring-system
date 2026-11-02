@@ -1178,11 +1178,12 @@
     // ==========================================================================
     async function fetchLiveESP32Data() {
         const startTime = performance.now();
-        const endpoint = `${state.esp32Url.replace(/\/+$/, '')}/api/data`;
+        // When loaded on HTTPS, always use same-origin /api/data to avoid Mixed-Content blocks
+        const endpoint = isHttps ? `${currentOrigin || ''}/api/data` : `${state.esp32Url.replace(/\/+$/, '')}/api/data`;
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3500);
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const response = await fetch(endpoint, {
                 method: 'GET',
@@ -1202,10 +1203,24 @@
             data.latencyMs = latency;
             consecutiveErrors = 0;
 
-            elements.deviceStatusBadge.className = 'device-status-badge';
-            elements.deviceStatusText.textContent = `LIVE: ${data.ip || 'CONNECTED'}`;
-            elements.diagLatency.textContent = `${latency} ms`;
-            elements.statPingBadge.textContent = `${latency} ms`;
+            const isOnline = data.esp32_connected !== false;
+            if (isOnline) {
+                elements.deviceStatusBadge.className = 'device-status-badge';
+                elements.deviceStatusText.textContent = `LIVE: ${data.device_ip || data.ip || 'CONNECTED'}`;
+                elements.diagLatency.textContent = `${latency} ms`;
+                elements.statPingBadge.textContent = `${latency} ms`;
+                elements.valConnectivityStatus.textContent = 'Online';
+                elements.badgeConnectivity.className = 'status-badge ok';
+                elements.badgeConnectivity.textContent = 'Live';
+            } else {
+                elements.deviceStatusBadge.className = 'device-status-badge warn-state';
+                elements.deviceStatusText.textContent = 'WAITING FOR SENSOR DATA';
+                elements.valConnectivityStatus.textContent = 'Waiting';
+                elements.badgeConnectivity.className = 'status-badge warn';
+                elements.badgeConnectivity.textContent = 'Waiting';
+                elements.statPingBadge.textContent = `${latency} ms`;
+                elements.diagLatency.textContent = `${latency} ms`;
+            }
 
             renderTelemetryUI(data);
 
@@ -1236,13 +1251,16 @@
 
     let consecutiveErrors = 0;
     const CANDIDATE_URLS = [
+        ...(window.location.origin && window.location.origin.startsWith('http') ? [window.location.origin] : []),
         'http://10.189.27.140',
-        'http://192.168.4.1',
-        ...(window.location.origin && window.location.origin.startsWith('http') ? [window.location.origin] : [])
+        'http://192.168.4.1'
     ];
 
     async function handleLiveConnectionError(err) {
         consecutiveErrors++;
+        // Avoid flickering on transient single packet drop
+        if (consecutiveErrors < 2) return;
+
         elements.deviceStatusBadge.className = 'device-status-badge error-state';
         elements.deviceStatusText.textContent = 'OFFLINE / RECONNECTING...';
         elements.valConnectivityStatus.textContent = 'Offline';
@@ -1251,7 +1269,7 @@
         elements.statPingBadge.textContent = 'Timeout';
         elements.diagLatency.textContent = 'Timeout';
         if (elements.valDeviceIp) {
-            elements.valDeviceIp.textContent = state.esp32Url.replace(/^https?:\/\//, '');
+            elements.valDeviceIp.textContent = (isHttps ? currentOrigin : state.esp32Url).replace(/^https?:\/\//, '');
         }
 
         if (elements.verdictMasterCard && state.history.records.length === 0) {
@@ -1369,12 +1387,16 @@
         }
 
         // Connectivity details
-        elements.valDeviceIp.textContent = data.ip || 'Unknown';
+        elements.valDeviceIp.textContent = data.device_ip || data.ip || 'ESP32 Live Stream';
         if (typeof data.wifi_rssi === 'number') {
             elements.valWifiRssi.textContent = `${data.wifi_rssi} dBm`;
+        } else {
+            elements.valWifiRssi.textContent = 'Active Hotspot';
         }
         if (typeof data.uptime_s === 'number') {
             elements.valUptime.textContent = formatUptime(data.uptime_s);
+        } else {
+            elements.valUptime.textContent = 'Streaming';
         }
 
         // Compute Actionable Usability Verdict (Drinking, Boiling, Household)
