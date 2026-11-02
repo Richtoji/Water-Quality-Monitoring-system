@@ -239,18 +239,6 @@ body::before {
     color: var(--text-primary);
 }
 
-.control-btn.active-live {
-    background: var(--cyan-500);
-    color: #040812;
-    box-shadow: 0 0 16px var(--cyan-glow);
-}
-
-.control-btn.active-demo {
-    background: var(--amber-500);
-    color: #040812;
-    box-shadow: 0 0 16px var(--amber-glow);
-}
-
 .btn-icon-square {
     width: 40px;
     height: 40px;
@@ -289,12 +277,6 @@ body::before {
     transition: var(--transition);
 }
 
-.device-status-badge.demo-active {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.35);
-    color: var(--amber-400);
-}
-
 .device-status-badge.error-state {
     background: rgba(244, 63, 94, 0.1);
     border-color: rgba(244, 63, 94, 0.35);
@@ -313,64 +295,6 @@ body::before {
 @keyframes livePulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.8); }
-}
-
-/* Demo Mode Prominent Banner */
-.demo-banner-box {
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(6, 182, 212, 0.06));
-    border: 1px solid rgba(245, 158, 11, 0.32);
-    border-left: 4px solid var(--amber-500);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-5);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-    animation: fadeIn 0.35s ease-out;
-}
-
-.demo-banner-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-}
-
-.demo-badge-pill {
-    background: var(--amber-500);
-    color: #030712;
-    padding: 3px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
-.demo-presets-row {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.preset-chip {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--text-secondary);
-    padding: 4px 11px;
-    border-radius: var(--radius-sm);
-    font-size: 0.74rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.preset-chip:hover {
-    background: rgba(6, 182, 212, 0.2);
-    border-color: var(--cyan-400);
-    color: #ffffff;
 }
 
 /* ==============================================================================
@@ -2004,50 +1928,182 @@ footer {
     gap: var(--space-3);
 }
 
-.btn-primary-analysis {
-    display: inline-flex;
+/* ==============================================================================
+   GIANT DEDICATED HERO MAIN WATER ANALYSIS BUTTON
+   The Primary Focal Call-to-Action on the Entire Website
+   ============================================================================== */
+.hero-main-cta-wrapper {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: var(--space-3);
-    padding: 16px 36px;
-    border-radius: var(--radius-full);
-    border: none;
-    cursor: pointer;
-    background: linear-gradient(135deg, #06b6d4 0%, #0d9488 50%, #10b981 100%);
+    width: 100%;
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.btn-hero-main-analysis {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 860px;
+    min-height: 104px;
+    padding: 22px 34px;
+    border-radius: 24px;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, #0284c7 0%, #06b6d4 40%, #059669 85%, #10b981 100%);
     color: #ffffff;
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    box-shadow: 0 0 30px rgba(6, 182, 212, 0.4), 0 4px 15px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    cursor: pointer;
+    text-align: left;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 0 45px rgba(6, 182, 212, 0.45), 0 16px 36px -4px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.2s ease;
 }
 
-.btn-primary-analysis:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 0 45px rgba(6, 182, 212, 0.6), 0 8px 25px rgba(0, 0, 0, 0.4);
+.btn-hero-main-analysis::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+    animation: heroShimmer 3.5s infinite ease-in-out;
 }
 
-.btn-primary-analysis:active {
+@keyframes heroShimmer {
+    0% { left: -100%; }
+    45%, 100% { left: 100%; }
+}
+
+.btn-hero-main-analysis:hover {
+    transform: translateY(-4px) scale(1.015);
+    box-shadow: 0 0 65px rgba(6, 182, 212, 0.7), 0 22px 45px -4px rgba(0, 0, 0, 0.65), inset 0 1px 2px rgba(255, 255, 255, 0.75);
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.btn-hero-main-analysis:active {
     transform: translateY(1px) scale(0.99);
 }
 
-.btn-primary-analysis .btn-icon {
+.btn-hero-left {
     display: flex;
     align-items: center;
-    animation: spinSlow 8s linear infinite;
+    gap: var(--space-4);
 }
 
-@keyframes spinSlow {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+.btn-flask-orb {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+    animation: flaskOrbFloat 3s infinite ease-in-out;
+}
+
+@keyframes flaskOrbFloat {
+    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
+    50% { transform: translateY(-3px) scale(1.05); box-shadow: 0 0 25px rgba(255, 255, 255, 0.6); }
+}
+
+.btn-hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.btn-kicker-tag {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-kicker-tag .kicker-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 10px #34d399;
+    display: inline-block;
+    animation: livePulse 1.8s infinite;
+}
+
+.btn-primary-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: #ffffff;
+    line-height: 1.15;
+    text-transform: uppercase;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.btn-subtitle-desc {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.btn-action-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.22);
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #ffffff;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-hero-main-analysis:hover .btn-action-badge {
+    background: rgba(255, 255, 255, 0.32);
+    transform: translateX(4px);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
 }
 
 .hub-hint-text {
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
+    margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+    .btn-hero-main-analysis {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-4);
+        padding: 20px;
+    }
+    .btn-hero-left {
+        width: 100%;
+    }
+    .btn-action-badge {
+        align-self: flex-end;
+    }
+    .btn-primary-title {
+        font-size: 1.35rem;
+    }
 }
 
 /* In-Progress View */

@@ -11,13 +11,8 @@ Built with **pure HTML5, CSS3, Vanilla JavaScript, and Chart.js**. Zero framewor
 * 🌊 **Living Ambient Aquatic Canvas**: Real-time bioluminescent particles and micro-bubbles gently floating in the background, simulating underwater depth with high-performance canvas physics.
 * 🧪 **Dynamic Visual Liquid Tank**: An animated water beaker graphic inside the TDS card that dynamically fills, bubbles, and shifts color in real time based on mineral concentration (cyan &rarr; emerald &rarr; amber &rarr; rose).
 * 🌡️ **Fluid Mercury Thermometer**: An animated vertical glass tube showing thermal expansion and glowing mercury levels responsive to water temperature.
-* 🎯 **Water Health Index (WQS) Radial Gauge**: A circular progress ring (0–100 score) scoring mineral balance and palatability against WHO and EPA guidelines.
-* 🎮 **Interactive Simulation Sandbox**: In Demo Mode, click instant real-world water presets to watch the gauges, charts, and tanks react dynamically:
-  * **Pure RO** (25 ppm, 19.5 °C)
-  * **Mountain Spring** (85 ppm, 16.2 °C)
-  * **City Municipal Tap** (225 ppm, 22.5 °C)
-  * **Hard Well Water** (420 ppm, 23.8 °C)
-  * **Elevated Runoff** (680 ppm, 28.0 °C)
+* 🔬 **Dedicated Water Analysis Command Hub**: The central focal point of the platform. One-click multi-stage hardware sampling that performs analog ADC stabilization, OneWire thermal compensation, and evaluates potable consumption safety against the Bureau of Indian Standards (BIS IS 10500:2012).
+* ⚖️ **Official Consumption Verdict & Household Suitability Matrix**: Generates an authoritative safety certificate (Safe to Consume, Conditionally Safe, or Unsafe) and grades 6 specific household use-cases (Direct Drinking, Cooking & Food Prep, Bathing & Hygiene, Laundry & Washing, Home Cleaning, and Gardening).
 * 📊 **Dual-Axis Chart.js Visualization**: Interactive real-time time-series graph with gradient fills, interactive tooltips, and metric filtering (Both / TDS Only / Temp Only).
 * ⏸️ **Live Stream Pause & Resume**: Freeze the graph at any moment to inspect historical peaks without losing incoming telemetry.
 * 📥 **One-Click CSV Export**: Download live or historical sensor readings into a standard CSV file for spreadsheet analysis.

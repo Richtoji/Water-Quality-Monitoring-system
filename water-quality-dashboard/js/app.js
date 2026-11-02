@@ -51,13 +51,6 @@
             tds: 0,
             temp: 0
         },
-        simulated: {
-            targetTds: 235.0,
-            currentTds: 235.0,
-            targetTemp: 22.4,
-            currentTemp: 22.4,
-            uptimeSeconds: 320
-        },
         analysis: {
             status: 'idle', // 'idle' | 'running' | 'completed'
             samples: [],
@@ -70,11 +63,7 @@
     // DOM Element References
     // ==========================================================================
     const elements = {
-        // Mode & Navigation
-        btnModeDemo: document.getElementById('btn-mode-demo'),
-        btnModeLive: document.getElementById('btn-mode-live'),
-        demoBannerBox: document.getElementById('demo-banner-box'),
-        linkSwitchLive: document.getElementById('link-switch-live'),
+        // Navigation & Status
         deviceStatusBadge: document.getElementById('device-status-badge'),
         deviceStatusText: document.getElementById('device-status-text'),
         heroPlatformTag: document.getElementById('hero-platform-tag'),
@@ -641,7 +630,7 @@
         if (!elements.hubProbeIndicator || !elements.hubProbeText) return;
         const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
         const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
-        const isAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
+        const isAir = ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5)));
 
         if (isAir) {
             elements.hubProbeIndicator.className = 'probe-indicator-chip chip-ready';
@@ -721,8 +710,7 @@
             ec_us_cm: Math.round(avgTds * 2),
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             tds_status: (samples.length > 0 && samples[0].tds_status) ? samples[0].tds_status : 'ok',
-            temp_status: (samples.length > 0 && samples[0].temp_status) ? samples[0].temp_status : 'ok',
-            isDemo: state.mode === 'demo'
+            temp_status: (samples.length > 0 && samples[0].temp_status) ? samples[0].temp_status : 'ok'
         };
 
         state.analysis.snapshot = snapshot;
@@ -742,7 +730,7 @@
 
         const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
         const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
-        const isSensorAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
+        const isSensorAir = ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5)));
         const ppm = typeof data.tds_ppm === 'number' ? data.tds_ppm : 0;
         const temp = typeof data.temp_c === 'number' ? data.temp_c : 25;
         const ec = typeof data.ec_us_cm === 'number' ? data.ec_us_cm : Math.round(ppm * 2);
@@ -905,7 +893,7 @@
 
         const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
         const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
-        const isSensorAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
+        const isSensorAir = ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5)));
         const isFault = (data.tds_status !== 'ok');
         const ppm = typeof data.tds_ppm === 'number' ? data.tds_ppm : 0;
 
@@ -1149,10 +1137,7 @@
             elements.bisMetaTimestamp.textContent = nowLabel;
         }
         if (elements.bisMetaSensorStatus) {
-            if (data.isDemo) {
-                elements.bisMetaSensorStatus.className = 'status-indicator-chip chip-simulated';
-                elements.bisMetaSensorStatus.textContent = 'Simulated Data';
-            } else if (isOffline) {
+            if (isOffline) {
                 elements.bisMetaSensorStatus.className = 'status-indicator-chip chip-neutral';
                 elements.bisMetaSensorStatus.textContent = 'Hardware Offline';
             } else {
@@ -1405,90 +1390,6 @@
     }
 
     // ==========================================================================
-    // Simulation / Demo Mode Engine
-    // ==========================================================================
-    function seedDemoHistory() {
-        const now = new Date();
-        state.history.timestamps = [];
-        state.history.tds = [];
-        state.history.temp = [];
-        state.history.rawVolts = [];
-        state.history.records = [];
-
-        for (let i = 18; i >= 0; i--) {
-            const t = new Date(now.getTime() - i * state.pollIntervalMs);
-            const timeLabel = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const driftTds = state.simulated.currentTds + Math.sin(i * 0.4) * 6.0 + (Math.random() - 0.5) * 3.0;
-            const driftTemp = state.simulated.currentTemp + Math.cos(i * 0.3) * 0.4 + (Math.random() - 0.5) * 0.2;
-            const rawV = (driftTds / 500.0) * 1.05;
-            const cls = classifyTds(driftTds);
-
-            state.history.timestamps.push(timeLabel);
-            state.history.tds.push(parseFloat(driftTds.toFixed(1)));
-            state.history.temp.push(parseFloat(driftTemp.toFixed(1)));
-            state.history.rawVolts.push(parseFloat(rawV.toFixed(3)));
-
-            state.history.records.unshift({
-                timestamp: timeLabel,
-                tds_ppm: driftTds,
-                temp_c: driftTemp,
-                tds_raw_v: rawV,
-                classification: cls.classification,
-                classificationColor: cls.color,
-                statusClass: 'simulated',
-                statusText: 'Simulated'
-            });
-        }
-
-        if (state.chartInstance) {
-            state.chartInstance.update();
-        }
-        renderReadingsTable();
-    }
-
-    function stepSimulatedData() {
-        state.simulated.uptimeSeconds += Math.round(state.pollIntervalMs / 1000);
-
-        // Smooth convergence toward selected preset
-        const tdsDelta = (state.simulated.targetTds - state.simulated.currentTds) * 0.25;
-        const tdsJitter = (Math.random() - 0.49) * 2.2;
-        state.simulated.currentTds += tdsDelta + tdsJitter;
-
-        const tempDelta = (state.simulated.targetTemp - state.simulated.currentTemp) * 0.25;
-        const tempJitter = (Math.random() - 0.49) * 0.12;
-        state.simulated.currentTemp += tempDelta + tempJitter;
-
-        const rawVoltage = (state.simulated.currentTds / 480.0) * 1.05;
-        const nowLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const cls = classifyTds(state.simulated.currentTds);
-
-        renderTelemetryUI({
-            tds_ppm: state.simulated.currentTds,
-            tds_raw_v: rawVoltage,
-            tds_status: 'ok',
-            temp_c: state.simulated.currentTemp,
-            temp_status: 'ok',
-            uptime_s: state.simulated.uptimeSeconds,
-            wifi_rssi: -58,
-            ip: '127.0.0.1 (Sandbox)',
-            isDemo: true
-        });
-
-        const record = {
-            timestamp: nowLabel,
-            tds_ppm: state.simulated.currentTds,
-            temp_c: state.simulated.currentTemp,
-            tds_raw_v: rawVoltage,
-            classification: cls.classification,
-            classificationColor: cls.color,
-            statusClass: 'simulated',
-            statusText: 'Simulated'
-        };
-
-        updateChartData(nowLabel, parseFloat(state.simulated.currentTds.toFixed(1)), parseFloat(state.simulated.currentTemp.toFixed(1)), record);
-    }
-
-    // ==========================================================================
     // Live Hardware Polling Engine
     // ==========================================================================
     async function fetchLiveESP32Data() {
@@ -1522,7 +1423,6 @@
         }
 
         try {
-            data.isDemo = false;
             data.latencyMs = latency;
             consecutiveErrors = 0;
 
@@ -1638,17 +1538,10 @@
     // ==========================================================================
     function renderTelemetryUI(data) {
         // Platform tags
-        if (data.isDemo) {
-            elements.heroPlatformTag.textContent = 'Virtual Sandbox';
-            elements.valConnectivityStatus.textContent = 'Active';
-            elements.badgeConnectivity.className = 'status-badge simulated';
-            elements.badgeConnectivity.textContent = 'Simulated';
-        } else {
-            elements.heroPlatformTag.textContent = 'ESP-WROOM-32';
-            elements.valConnectivityStatus.textContent = 'Online';
-            elements.badgeConnectivity.className = 'status-badge ok';
-            elements.badgeConnectivity.textContent = 'Live';
-        }
+        elements.heroPlatformTag.textContent = 'ESP-WROOM-32';
+        elements.valConnectivityStatus.textContent = 'Online';
+        elements.badgeConnectivity.className = 'status-badge ok';
+        elements.badgeConnectivity.textContent = 'Live';
 
         // TDS Card (Animated number transitions)
         if (data.tds_status === 'ok' && typeof data.tds_ppm === 'number') {
@@ -1657,7 +1550,7 @@
             state.displayedValues.tds = ppm;
 
             elements.badgeTdsStatus.className = 'status-badge ok';
-            elements.badgeTdsStatus.textContent = data.isDemo ? 'Simulated' : 'Normal';
+            elements.badgeTdsStatus.textContent = 'Normal';
 
             const classification = classifyTds(ppm, data.tds_raw_v);
             elements.valTdsClassification.textContent = classification.classification;
@@ -1694,7 +1587,7 @@
 
             elements.valTempF.textContent = `${((temp * 9/5) + 32).toFixed(1)} °F`;
             elements.badgeTempStatus.className = 'status-badge ok';
-            elements.badgeTempStatus.textContent = data.isDemo ? 'Simulated' : 'Normal';
+            elements.badgeTempStatus.textContent = 'Normal';
 
             elements.diagDs18b20.textContent = 'Online';
             elements.diagDs18b20.style.color = 'var(--emerald-400)';
@@ -1742,82 +1635,19 @@
     }
 
     // ==========================================================================
-    // Mode Switcher Controller
+    // Live Hardware Polling Controller
     // ==========================================================================
-    function setMode(newMode) {
-        state.mode = newMode;
-        localStorage.setItem('waterIntel_mode', newMode);
-
+    function startLiveHardwarePolling() {
         if (state.pollTimer) {
             clearInterval(state.pollTimer);
             state.pollTimer = null;
         }
 
-        if (newMode === 'demo') {
-            elements.btnModeDemo.className = 'control-btn active-demo';
-            elements.btnModeLive.className = 'control-btn';
-            elements.demoBannerBox.style.display = 'flex';
-            elements.deviceStatusBadge.className = 'device-status-badge demo-active';
-            elements.deviceStatusText.textContent = 'DEMO MODE ACTIVE';
+        elements.deviceStatusBadge.className = 'device-status-badge';
+        elements.deviceStatusText.textContent = 'CONNECTING TO ESP32...';
 
-            showToast('Demo Mode active: displaying simulated environmental telemetry.', 'info');
-            seedDemoHistory();
-            stepSimulatedData();
-            state.pollTimer = setInterval(stepSimulatedData, state.pollIntervalMs);
-        } else {
-            elements.btnModeDemo.className = 'control-btn';
-            elements.btnModeLive.className = 'control-btn active-live';
-            elements.demoBannerBox.style.display = 'none';
-            elements.deviceStatusBadge.className = 'device-status-badge';
-            elements.deviceStatusText.textContent = 'CONNECTING TO ESP32...';
-
-            showToast(`Connecting to ESP32 at ${state.esp32Url}...`, 'info');
-
-            state.history.timestamps = [];
-            state.history.tds = [];
-            state.history.temp = [];
-            state.history.records = [];
-            state.displayedValues.tds = 0;
-            state.displayedValues.temp = 0;
-            elements.valTds.textContent = '--';
-            elements.valTemp.textContent = '--';
-            elements.valTempF.textContent = '-- °F';
-            elements.valTdsVoltage.textContent = '-- V';
-            elements.valTdsClassification.textContent = 'Awaiting hardware telemetry...';
-            elements.valTdsClassification.style.color = 'var(--text-muted)';
-            elements.badgeTdsStatus.className = 'status-badge warn';
-            elements.badgeTdsStatus.textContent = 'Connecting';
-            elements.badgeTempStatus.className = 'status-badge warn';
-            elements.badgeTempStatus.textContent = 'Connecting';
-            elements.valConnectivityStatus.textContent = 'Searching';
-            elements.badgeConnectivity.className = 'status-badge warn';
-            elements.badgeConnectivity.textContent = 'Connecting';
-            if (elements.valDeviceIp) {
-                elements.valDeviceIp.textContent = state.esp32Url.replace(/^https?:\/\//, '');
-            }
-            renderReadingsTable();
-            if (state.chartInstance) state.chartInstance.update();
-
-            fetchLiveESP32Data();
-            state.pollTimer = setInterval(fetchLiveESP32Data, state.pollIntervalMs);
-        }
-    }
-
-    // ==========================================================================
-    // Simulation Sandbox Preset Handler
-    // ==========================================================================
-    function setupSimulationPresets() {
-        const presetChips = document.querySelectorAll('.preset-chip');
-        presetChips.forEach(chip => {
-            chip.addEventListener('click', () => {
-                const targetTds = parseFloat(chip.getAttribute('data-tds'));
-                const targetTemp = parseFloat(chip.getAttribute('data-temp'));
-                state.simulated.targetTds = targetTds;
-                state.simulated.targetTemp = targetTemp;
-
-                showToast(`Simulation preset: ${chip.textContent.trim()} loaded`, 'success');
-            });
-        });
+        fetchLiveESP32Data();
+        state.pollTimer = setInterval(fetchLiveESP32Data, state.pollIntervalMs);
     }
 
     // ==========================================================================
@@ -2002,16 +1832,13 @@
 
         closeSettingsModal();
         showToast('Configuration saved successfully.', 'success');
-        setMode(state.mode);
+        startLiveHardwarePolling();
     }
 
     // ==========================================================================
     // Event Listeners Initialization
     // ==========================================================================
     function attachEventListeners() {
-        elements.btnModeDemo.addEventListener('click', () => setMode('demo'));
-        elements.btnModeLive.addEventListener('click', () => setMode('live'));
-        elements.linkSwitchLive.addEventListener('click', () => setMode('live'));
         elements.btnToggleFullscreen.addEventListener('click', toggleFullscreen);
 
         // Chart controls
@@ -2037,8 +1864,6 @@
                 closeSettingsModal();
             }
         });
-
-        setupSimulationPresets();
 
         // Water Analysis Hub Listeners
         if (elements.btnStartAnalysis) {
@@ -2097,7 +1922,7 @@
         initChart();
         attachEventListeners();
         loadInitialHistory();
-        setMode(state.mode);
+        startLiveHardwarePolling();
     });
 
 })();

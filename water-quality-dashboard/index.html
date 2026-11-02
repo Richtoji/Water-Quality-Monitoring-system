@@ -46,18 +46,6 @@
             </div>
 
             <div class="hero-controls">
-                <!-- Mode Switcher (Live vs Demo) -->
-                <div class="mode-segmented-control" role="group" aria-label="Operating Mode">
-                    <button id="btn-mode-live" class="control-btn active-live" type="button" title="Live connection to physical ESP32 hardware">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                        <span>Live ESP32</span>
-                    </button>
-                    <button id="btn-mode-demo" class="control-btn" type="button" title="Simulated environment for preview and evaluation">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                        <span>Demo Mode</span>
-                    </button>
-                </div>
-
                 <!-- Settings Button -->
                 <button id="btn-open-settings" class="btn-icon-square" type="button" title="Configure ESP32 API Endpoint">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -81,152 +69,11 @@
             </div>
         </header>
 
-        <!-- Prominent Demo Mode Notification & Presets Banner (Hidden in Live Mode) -->
-        <div id="demo-banner-box" class="demo-banner-box" style="display: none;">
-            <div class="demo-banner-left">
-                <span class="demo-badge-pill">SIMULATED DATA</span>
-                <span style="font-size: 0.85rem; color: #cbd5e1;">Testing environmental profiles:</span>
-                <div class="demo-presets-row">
-                    <button class="preset-chip" data-tds="25" data-temp="19.2" type="button">Pure RO (25 ppm)</button>
-                    <button class="preset-chip" data-tds="90" data-temp="16.5" type="button">Mountain Spring (90 ppm)</button>
-                    <button class="preset-chip" data-tds="235" data-temp="22.4" type="button">City Tap (235 ppm)</button>
-                    <button class="preset-chip" data-tds="430" data-temp="24.1" type="button">Hard Well (430 ppm)</button>
-                    <button class="preset-chip" data-tds="690" data-temp="27.8" type="button">Elevated Runoff (690 ppm)</button>
-                </div>
-            </div>
-            <a id="link-switch-live" style="color: var(--cyan-400); font-size: 0.82rem; font-weight: 600; text-decoration: underline; cursor: pointer; white-space: nowrap;">
-                Switch to Live ESP32 &rarr;
-            </a>
-        </div>
-
         <!-- ====================================================================
-             2. PREMIUM SENSOR MEASUREMENT CARDS
+             1. HERO WATER ANALYSIS COMMAND HUB & OFFICIAL CONSUMPTION VERDICT
+             Primary Focus of the Entire Application (Live ESP32 Telemetry Only)
              ==================================================================== -->
-        <section class="sensor-cards-grid" aria-label="Key Sensor Metrics">
-            <!-- TDS Measurement Card -->
-            <article id="card-tds" class="metric-card">
-                <div class="card-top-row">
-                    <div class="card-title-badge">
-                        <div class="card-icon-box icon-cyan">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="m4.93 4.93 4.24 4.24"></path>
-                                <path d="m14.83 9.17 4.24-4.24"></path>
-                                <path d="m14.83 14.83 4.24 4.24"></path>
-                                <path d="m9.17 14.83-4.24 4.24"></path>
-                            </svg>
-                        </div>
-                        <span class="card-label">Total Dissolved Solids</span>
-                    </div>
-                    <span id="badge-tds-status" class="status-badge ok">Normal</span>
-                </div>
-
-                <div class="reading-display-row">
-                    <div class="reading-value-wrap">
-                        <span id="val-tds" class="large-stat-number">--</span>
-                        <span class="stat-unit">ppm</span>
-                    </div>
-                    <!-- Micro Trend Sparkline -->
-                    <canvas id="sparkline-tds" class="sparkline-canvas" width="90" height="42" title="Recent TDS Trend"></canvas>
-                </div>
-
-                <div class="card-meta-list">
-                    <div class="meta-item">
-                        <span class="meta-item-label">Mineral Classification:</span>
-                        <strong id="val-tds-classification" class="meta-item-value" style="color: var(--cyan-400);">Measuring...</strong>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-item-label">Electrical Conductivity:</span>
-                        <span id="val-tds-ec" class="meta-item-value" style="color: var(--cyan-300);">-- µS/cm</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-item-label">ADC Sensor Output:</span>
-                        <span id="val-tds-voltage" class="meta-item-value">-- V</span>
-                    </div>
-                </div>
-            </article>
-
-            <!-- Water Temperature Card -->
-            <article id="card-temp" class="metric-card">
-                <div class="card-top-row">
-                    <div class="card-title-badge">
-                        <div class="card-icon-box icon-amber">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                            </svg>
-                        </div>
-                        <span class="card-label">Water Temperature</span>
-                    </div>
-                    <span id="badge-temp-status" class="status-badge ok">Normal</span>
-                </div>
-
-                <div class="reading-display-row">
-                    <div class="reading-value-wrap">
-                        <span id="val-temp" class="large-stat-number">--</span>
-                        <span class="stat-unit">°C</span>
-                    </div>
-                    <!-- Micro Trend Sparkline -->
-                    <canvas id="sparkline-temp" class="sparkline-canvas" width="90" height="42" title="Recent Temperature Trend"></canvas>
-                </div>
-
-                <div class="card-meta-list">
-                    <div class="meta-item">
-                        <span class="meta-item-label">Fahrenheit Scale:</span>
-                        <strong id="val-temp-f" class="meta-item-value" style="color: var(--blue-400);">-- °F</strong>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-item-label">Hardware Sensor:</span>
-                        <span class="meta-item-value">DS18B20 OneWire</span>
-                    </div>
-                </div>
-            </article>
-
-            <!-- ESP32 Connectivity & Hardware Card -->
-            <article id="card-connectivity" class="metric-card">
-                <div class="card-top-row">
-                    <div class="card-title-badge">
-                        <div class="card-icon-box icon-emerald">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                                <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                                <line x1="6" y1="18" x2="6.01" y2="18"></line>
-                            </svg>
-                        </div>
-                        <span class="card-label">ESP32 Telemetry</span>
-                    </div>
-                    <span id="badge-connectivity" class="status-badge ok">Active</span>
-                </div>
-
-                <div class="reading-display-row">
-                    <div class="reading-value-wrap">
-                        <span id="val-connectivity-status" class="large-stat-number" style="font-size: 2.3rem;">Ready</span>
-                    </div>
-                    <div id="stat-ping-badge" style="font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: var(--emerald-400);">~12 ms</div>
-                </div>
-
-                <div class="card-meta-list">
-                    <div class="meta-item">
-                        <span class="meta-item-label">Target IP:</span>
-                        <span id="val-device-ip" class="meta-item-value">10.189.27.140</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-item-label">Wi-Fi RSSI:</span>
-                        <span id="val-wifi-rssi" class="meta-item-value" style="color: var(--emerald-400);">-58 dBm</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-item-label">Uptime:</span>
-                        <span id="val-uptime" class="meta-item-value">--</span>
-                    </div>
-                </div>
-            </article>
-        </section>
-
-        <!-- ====================================================================
-             INTERACTIVE WATER ANALYSIS CONTROL HUB & OFFICIAL VERDICT
-             User-Triggered Scientific Sampling & Household Suitability Evaluation
-             ==================================================================== -->
-        <section id="water-analysis-hub" class="water-analysis-hub" aria-label="Water Analysis Lab">
+        <section id="water-analysis-hub" class="water-analysis-hub hero-analysis-hub" aria-label="Water Quality Analysis Lab">
             <div class="analysis-hub-card">
                 <!-- Top Hub Bar: Tag, Title, Live Probe State -->
                 <div class="hub-header-row">
@@ -237,12 +84,12 @@
                         </div>
                         <h2 class="hub-main-title">Water Sample Analysis &amp; Consumption Verdict</h2>
                         <p class="hub-sub-desc">
-                            Submerge the ESP32 TDS probe and DS18B20 temperature sensor into your water sample, then click below to evaluate if the water is safe to consume or suitable for household applications.
+                            Submerge the ESP32 TDS probe and DS18B20 temperature sensor into your water sample, then click the primary analysis button below to evaluate whether the water is safe to consume or suitable for household applications.
                         </p>
                     </div>
 
                     <div class="hub-probe-status-wrap">
-                        <span class="probe-status-label">Probe Live Status:</span>
+                        <span class="probe-status-label">Live Sensor Contact:</span>
                         <div id="hub-probe-indicator" class="probe-indicator-chip chip-ready">
                             <span class="pulse-dot"></span>
                             <span id="hub-probe-text">Awaiting Submergence (0 ppm)</span>
@@ -257,7 +104,7 @@
                         <div class="idle-guidance-row">
                             <div class="guidance-step">
                                 <span class="step-num">1</span>
-                                <span class="step-txt">Submerge TDS &amp; Temp probe in water</span>
+                                <span class="step-txt">Submerge TDS &amp; Temp probe in water sample</span>
                             </div>
                             <div class="guidance-divider">→</div>
                             <div class="guidance-step">
@@ -271,14 +118,33 @@
                             </div>
                         </div>
 
-                        <div class="hub-cta-row">
-                            <button id="btn-start-analysis" class="btn-primary-analysis" type="button">
-                                <span class="btn-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
-                                </span>
-                                <span class="btn-text">Start Water Analysis</span>
+                        <!-- THE MAIN BUTTON ON THE WHOLE WEBSITE -->
+                        <div class="hero-main-cta-wrapper">
+                            <button id="btn-start-analysis" class="btn-hero-main-analysis" type="button" aria-label="Start Water Quality Analysis">
+                                <div class="btn-hero-left">
+                                    <div class="btn-flask-orb" aria-hidden="true">
+                                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                                            <path d="M5.52 16h12.96"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="btn-hero-content">
+                                        <span class="btn-kicker-tag">
+                                            <span class="kicker-dot"></span>
+                                            OFFICIAL POTABILITY &amp; DOMESTIC SUITABILITY LAB
+                                        </span>
+                                        <span class="btn-primary-title">START WATER ANALYSIS</span>
+                                        <span class="btn-subtitle-desc">
+                                            Sample live ESP32 sensors &bull; Evaluate drinking safety &bull; Check 6 household uses
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="btn-action-badge">
+                                    <span>RUN TEST</span>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </div>
                             </button>
-                            <span class="hub-hint-text">Evaluates against Bureau of Indian Standards (BIS IS 10500:2012)</span>
+                            <span class="hub-hint-text">Scientifically evaluated against Bureau of Indian Standards (BIS IS 10500:2012)</span>
                         </div>
                     </div>
 
@@ -449,6 +315,129 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- ====================================================================
+             2. PREMIUM SENSOR MEASUREMENT CARDS
+             ==================================================================== -->
+        <section class="sensor-cards-grid" aria-label="Key Sensor Metrics">
+            <!-- TDS Measurement Card -->
+            <article id="card-tds" class="metric-card">
+                <div class="card-top-row">
+                    <div class="card-title-badge">
+                        <div class="card-icon-box icon-cyan">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="m4.93 4.93 4.24 4.24"></path>
+                                <path d="m14.83 9.17 4.24-4.24"></path>
+                                <path d="m14.83 14.83 4.24 4.24"></path>
+                                <path d="m9.17 14.83-4.24 4.24"></path>
+                            </svg>
+                        </div>
+                        <span class="card-label">Total Dissolved Solids</span>
+                    </div>
+                    <span id="badge-tds-status" class="status-badge ok">Normal</span>
+                </div>
+
+                <div class="reading-display-row">
+                    <div class="reading-value-wrap">
+                        <span id="val-tds" class="large-stat-number">--</span>
+                        <span class="stat-unit">ppm</span>
+                    </div>
+                    <!-- Micro Trend Sparkline -->
+                    <canvas id="sparkline-tds" class="sparkline-canvas" width="90" height="42" title="Recent TDS Trend"></canvas>
+                </div>
+
+                <div class="card-meta-list">
+                    <div class="meta-item">
+                        <span class="meta-item-label">Mineral Classification:</span>
+                        <strong id="val-tds-classification" class="meta-item-value" style="color: var(--cyan-400);">Measuring...</strong>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-item-label">Electrical Conductivity:</span>
+                        <span id="val-tds-ec" class="meta-item-value" style="color: var(--cyan-300);">-- µS/cm</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-item-label">ADC Sensor Output:</span>
+                        <span id="val-tds-voltage" class="meta-item-value">-- V</span>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Water Temperature Card -->
+            <article id="card-temp" class="metric-card">
+                <div class="card-top-row">
+                    <div class="card-title-badge">
+                        <div class="card-icon-box icon-amber">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="card-label">Water Temperature</span>
+                    </div>
+                    <span id="badge-temp-status" class="status-badge ok">Normal</span>
+                </div>
+
+                <div class="reading-display-row">
+                    <div class="reading-value-wrap">
+                        <span id="val-temp" class="large-stat-number">--</span>
+                        <span class="stat-unit">°C</span>
+                    </div>
+                    <!-- Micro Trend Sparkline -->
+                    <canvas id="sparkline-temp" class="sparkline-canvas" width="90" height="42" title="Recent Temperature Trend"></canvas>
+                </div>
+
+                <div class="card-meta-list">
+                    <div class="meta-item">
+                        <span class="meta-item-label">Fahrenheit Scale:</span>
+                        <strong id="val-temp-f" class="meta-item-value" style="color: var(--blue-400);">-- °F</strong>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-item-label">Hardware Sensor:</span>
+                        <span class="meta-item-value">DS18B20 OneWire</span>
+                    </div>
+                </div>
+            </article>
+
+            <!-- ESP32 Connectivity & Hardware Card -->
+            <article id="card-connectivity" class="metric-card">
+                <div class="card-top-row">
+                    <div class="card-title-badge">
+                        <div class="card-icon-box icon-emerald">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                            </svg>
+                        </div>
+                        <span class="card-label">ESP32 Telemetry</span>
+                    </div>
+                    <span id="badge-connectivity" class="status-badge ok">Active</span>
+                </div>
+
+                <div class="reading-display-row">
+                    <div class="reading-value-wrap">
+                        <span id="val-connectivity-status" class="large-stat-number" style="font-size: 2.3rem;">Ready</span>
+                    </div>
+                    <div id="stat-ping-badge" style="font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: var(--emerald-400);">~12 ms</div>
+                </div>
+
+                <div class="card-meta-list">
+                    <div class="meta-item">
+                        <span class="meta-item-label">Target IP:</span>
+                        <span id="val-device-ip" class="meta-item-value">10.189.27.140</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-item-label">Wi-Fi RSSI:</span>
+                        <span id="val-wifi-rssi" class="meta-item-value" style="color: var(--emerald-400);">-58 dBm</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-item-label">Uptime:</span>
+                        <span id="val-uptime" class="meta-item-value">--</span>
+                    </div>
+                </div>
+            </article>
         </section>
 
         <!-- ====================================================================
