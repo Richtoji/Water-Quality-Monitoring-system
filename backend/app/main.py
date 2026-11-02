@@ -14,15 +14,31 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from app.database import init_db, get_history, get_stats, export_csv_data, insert_reading
 from app.models import ConfigUpdate, HealthStatus, TelemetryReading
 from app.telemetry import telemetry_service
+from app.port_bridge import start_bridge
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize SQLite DB and start background telemetry poller
-    init_db()
-    telemetry_service.start_background_polling()
+    # Startup: Initialize SQLite DB, background telemetry poller, and dual-port bridge
+    try:
+        init_db()
+    except Exception as e:
+        print(f"Lifespan init_db error: {e}")
+    try:
+        telemetry_service.start_background_polling()
+    except Exception as e:
+        print(f"Lifespan polling error: {e}")
+    
+    # Start dual-port bridge so both 8080 and 9000 respond regardless of orchestrator
+    listen_port = int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT", os.getenv("PORT", "8080")))
+    alternate_port = 9000 if listen_port != 9000 else 8080
+    start_bridge(bridge_port=alternate_port, target_port=listen_port)
+    
     yield
     # Shutdown: Stop poller
-    telemetry_service.stop_background_polling()
+    try:
+        telemetry_service.stop_background_polling()
+    except Exception as e:
+        print(f"Lifespan stop polling error: {e}")
 
 app = FastAPI(
     title="AquaSense IoT Telemetry API",

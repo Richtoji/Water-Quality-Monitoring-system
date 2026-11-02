@@ -12,32 +12,44 @@ DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "da
 MAX_STORED_READINGS = int(os.getenv("MAX_STORED_READINGS", "10000"))
 
 def get_connection() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    target = DB_PATH
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(target)), exist_ok=True)
+        conn = sqlite3.connect(target, timeout=10.0)
+    except Exception as e:
+        # Fallback to /tmp if volume is not writable
+        target = "/tmp/telemetry.db"
+        conn = sqlite3.connect(target, timeout=10.0)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
     """Initializes the database schema with WAL mode and performance indexes."""
-    with get_connection() as conn:
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS readings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                tds_ppm REAL NOT NULL,
-                temp_c REAL NOT NULL,
-                raw_v REAL,
-                raw_adc INTEGER,
-                tds_status TEXT DEFAULT 'ok',
-                temp_status TEXT DEFAULT 'ok',
-                palatability TEXT,
-                potability TEXT
-            );
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON readings(timestamp DESC);")
-        conn.commit()
+    try:
+        with get_connection() as conn:
+            try:
+                conn.execute("PRAGMA journal_mode=WAL;")
+            except Exception:
+                pass
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS readings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    tds_ppm REAL NOT NULL,
+                    temp_c REAL NOT NULL,
+                    raw_v REAL,
+                    raw_adc INTEGER,
+                    tds_status TEXT DEFAULT 'ok',
+                    temp_status TEXT DEFAULT 'ok',
+                    palatability TEXT,
+                    potability TEXT
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON readings(timestamp DESC);")
+            conn.commit()
+    except Exception as e:
+        print(f"Warning: Database initialization warning ({e}), continuing in-memory/fallback mode.")
 
 def insert_reading(
     tds_ppm: float,

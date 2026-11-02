@@ -32,8 +32,8 @@ RUN chmod +x /app/start.sh
 # Copy frontend static web dashboard
 COPY water-quality-dashboard /app/static
 
-# Ensure persistent data directory exists
-RUN mkdir -p /app/data
+# Ensure persistent data directory exists and is writable by any user
+RUN mkdir -p /app/data && chmod -R 777 /app/data
 
 EXPOSE 8080
 EXPOSE 9000
