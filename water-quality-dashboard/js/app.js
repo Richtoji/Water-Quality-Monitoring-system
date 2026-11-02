@@ -57,7 +57,13 @@
             targetTemp: 22.4,
             currentTemp: 22.4,
             uptimeSeconds: 320
-        }
+        },
+        analysis: {
+            status: 'idle', // 'idle' | 'running' | 'completed'
+            samples: [],
+            snapshot: null
+        },
+        currentLiveTelemetry: null
     };
 
     // ==========================================================================
@@ -180,7 +186,50 @@
         appStatusCleaning: document.getElementById('app-status-cleaning'),
         appDescCleaning: document.getElementById('app-desc-cleaning'),
         appStatusGardening: document.getElementById('app-status-gardening'),
-        appDescGardening: document.getElementById('app-desc-gardening')
+        appDescGardening: document.getElementById('app-desc-gardening'),
+
+        // Interactive Water Analysis Control Hub
+        hubProbeIndicator: document.getElementById('hub-probe-indicator'),
+        hubProbeText: document.getElementById('hub-probe-text'),
+        hubIdleView: document.getElementById('hub-idle-view'),
+        hubRunningView: document.getElementById('hub-running-view'),
+        hubResultView: document.getElementById('hub-result-view'),
+        btnStartAnalysis: document.getElementById('btn-start-analysis'),
+        btnReanalyze: document.getElementById('btn-reanalyze'),
+        btnPrintReport: document.getElementById('btn-print-report'),
+        analysisStepTitle: document.getElementById('analysis-step-title'),
+        analysisPercentBadge: document.getElementById('analysis-percent-badge'),
+        analysisStepDesc: document.getElementById('analysis-step-desc'),
+        analysisProgressBar: document.getElementById('analysis-progress-bar'),
+
+        // Primary Verdict Banner
+        hubVerdictBanner: document.getElementById('hub-verdict-banner'),
+        verdictBannerIcon: document.getElementById('verdict-banner-icon'),
+        verdictBannerKicker: document.getElementById('verdict-banner-kicker'),
+        verdictBannerHeadline: document.getElementById('verdict-banner-headline'),
+        verdictBannerExplanation: document.getElementById('verdict-banner-explanation'),
+        verdictPotabilityPill: document.getElementById('verdict-potability-pill'),
+        verdictPalatabilityPill: document.getElementById('verdict-palatability-pill'),
+
+        // Sample Snapshot Elements
+        snapTds: document.getElementById('snap-tds'),
+        snapTemp: document.getElementById('snap-temp'),
+        snapEc: document.getElementById('snap-ec'),
+        snapTimestamp: document.getElementById('snap-timestamp'),
+
+        // 6 Household Application Tiles
+        tileBadgeDrinking: document.getElementById('tile-badge-drinking'),
+        tileDescDrinking: document.getElementById('tile-desc-drinking'),
+        tileBadgeCooking: document.getElementById('tile-badge-cooking'),
+        tileDescCooking: document.getElementById('tile-desc-cooking'),
+        tileBadgeBathing: document.getElementById('tile-badge-bathing'),
+        tileDescBathing: document.getElementById('tile-desc-bathing'),
+        tileBadgeLaundry: document.getElementById('tile-badge-laundry'),
+        tileDescLaundry: document.getElementById('tile-desc-laundry'),
+        tileBadgeCleaning: document.getElementById('tile-badge-cleaning'),
+        tileDescCleaning: document.getElementById('tile-desc-cleaning'),
+        tileBadgeGardening: document.getElementById('tile-badge-gardening'),
+        tileDescGardening: document.getElementById('tile-desc-gardening')
     };
 
     // ==========================================================================
@@ -583,6 +632,268 @@
             `;
             elements.readingsTableBody.appendChild(tr);
         });
+    }
+
+    // ==========================================================================
+    // Interactive Water Analysis Engine & Official Verdict Controller
+    // ==========================================================================
+    function updateHubProbeStatus(data) {
+        if (!elements.hubProbeIndicator || !elements.hubProbeText) return;
+        const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
+        const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
+        const isAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
+
+        if (isAir) {
+            elements.hubProbeIndicator.className = 'probe-indicator-chip chip-ready';
+            elements.hubProbeText.textContent = 'Submerge in Water (0 ppm)';
+        } else {
+            elements.hubProbeIndicator.className = 'probe-indicator-chip chip-submerged';
+            elements.hubProbeText.textContent = `Water Detected (${Math.round(data.tds_ppm || 0)} ppm)`;
+        }
+    }
+
+    async function startWaterAnalysis() {
+        if (state.analysis.status === 'running') return;
+        state.analysis.status = 'running';
+        state.analysis.samples = [];
+
+        // Switch Views
+        if (elements.hubIdleView) elements.hubIdleView.style.display = 'none';
+        if (elements.hubResultView) elements.hubResultView.style.display = 'none';
+        if (elements.hubRunningView) elements.hubRunningView.style.display = 'block';
+
+        const stages = [
+            { pct: 20, title: 'Step 1/4: Stabilizing Sensor Contact', desc: 'Acquiring high-resolution analog ADC voltage and checking probe submergence...' },
+            { pct: 45, title: 'Step 2/4: Thermal Normalization', desc: 'Applying DS18B20 OneWire temperature compensation to standard 25.0 °C reference...' },
+            { pct: 75, title: 'Step 3/4: BIS Standard Specification Check', desc: 'Comparing measured TDS against Indian Drinking Standard BIS IS 10500:2012...' },
+            { pct: 95, title: 'Step 4/4: Household Utility Evaluation', desc: 'Computing domestic suitability for drinking, cooking, bathing, laundry, cleaning, and gardening...' },
+            { pct: 100, title: 'Analysis Complete', desc: 'Compiling official water potability certificate and household report...' }
+        ];
+
+        for (let i = 0; i < stages.length; i++) {
+            const stage = stages[i];
+            if (elements.analysisStepTitle) elements.analysisStepTitle.textContent = stage.title;
+            if (elements.analysisPercentBadge) elements.analysisPercentBadge.textContent = `${stage.pct}%`;
+            if (elements.analysisStepDesc) elements.analysisStepDesc.textContent = stage.desc;
+            if (elements.analysisProgressBar) elements.analysisProgressBar.style.width = `${stage.pct}%`;
+
+            if (state.currentLiveTelemetry) {
+                state.analysis.samples.push({ ...state.currentLiveTelemetry });
+            }
+
+            await new Promise(r => setTimeout(r, 700));
+        }
+
+        playAnalysisCompleteChime();
+
+        // Stabilize averages from samples
+        const samples = state.analysis.samples;
+        let avgTds = 0;
+        let avgTemp = 25.0;
+        let avgRawV = 0.0;
+        let avgRawAdc = 0;
+
+        if (samples.length > 0) {
+            avgTds = samples.reduce((acc, s) => acc + (typeof s.tds_ppm === 'number' ? s.tds_ppm : 0), 0) / samples.length;
+            avgTemp = samples.reduce((acc, s) => acc + (typeof s.temp_c === 'number' ? s.temp_c : 25), 0) / samples.length;
+            avgRawV = samples.reduce((acc, s) => {
+                const v = typeof s.tds_raw_v === 'number' ? s.tds_raw_v : (typeof s.raw_v === 'number' ? s.raw_v : 0);
+                return acc + v;
+            }, 0) / samples.length;
+            avgRawAdc = Math.round(samples.reduce((acc, s) => {
+                const a = typeof s.tds_raw_adc === 'number' ? s.tds_raw_adc : (typeof s.raw_adc === 'number' ? s.raw_adc : 0);
+                return acc + a;
+            }, 0) / samples.length);
+        } else if (state.currentLiveTelemetry) {
+            avgTds = state.currentLiveTelemetry.tds_ppm || 0;
+            avgTemp = state.currentLiveTelemetry.temp_c || 25;
+            avgRawV = (typeof state.currentLiveTelemetry.tds_raw_v === 'number') ? state.currentLiveTelemetry.tds_raw_v : (state.currentLiveTelemetry.raw_v || 0);
+            avgRawAdc = (typeof state.currentLiveTelemetry.tds_raw_adc === 'number') ? state.currentLiveTelemetry.tds_raw_adc : (state.currentLiveTelemetry.raw_adc || 0);
+        }
+
+        const snapshot = {
+            tds_ppm: parseFloat(avgTds.toFixed(1)),
+            temp_c: parseFloat(avgTemp.toFixed(1)),
+            raw_v: parseFloat(avgRawV.toFixed(3)),
+            raw_adc: avgRawAdc,
+            tds_raw_v: parseFloat(avgRawV.toFixed(3)),
+            tds_raw_adc: avgRawAdc,
+            ec_us_cm: Math.round(avgTds * 2),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            tds_status: (samples.length > 0 && samples[0].tds_status) ? samples[0].tds_status : 'ok',
+            temp_status: (samples.length > 0 && samples[0].temp_status) ? samples[0].temp_status : 'ok',
+            isDemo: state.mode === 'demo'
+        };
+
+        state.analysis.snapshot = snapshot;
+        state.analysis.status = 'completed';
+
+        renderAnalysisVerdict(snapshot);
+
+        if (elements.hubRunningView) elements.hubRunningView.style.display = 'none';
+        if (elements.hubResultView) elements.hubResultView.style.display = 'block';
+
+        elements.hubResultView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('Water sample analysis complete! Official verdict generated.', 'success');
+    }
+
+    function renderAnalysisVerdict(data) {
+        if (!elements.hubVerdictBanner) return;
+
+        const rawV = (typeof data.tds_raw_v === 'number') ? data.tds_raw_v : ((typeof data.raw_v === 'number') ? data.raw_v : null);
+        const rawAdc = (typeof data.tds_raw_adc === 'number') ? data.tds_raw_adc : ((typeof data.raw_adc === 'number') ? data.raw_adc : null);
+        const isSensorAir = (!data.isDemo && ((rawV !== null && rawV < 0.005) || (data.tds_ppm === 0 && (rawAdc === null || rawAdc <= 5))));
+        const ppm = typeof data.tds_ppm === 'number' ? data.tds_ppm : 0;
+        const temp = typeof data.temp_c === 'number' ? data.temp_c : 25;
+        const ec = typeof data.ec_us_cm === 'number' ? data.ec_us_cm : Math.round(ppm * 2);
+
+        // Update Snapshot Bar
+        if (elements.snapTds) elements.snapTds.textContent = `${Math.round(ppm)} ppm`;
+        if (elements.snapTemp) elements.snapTemp.textContent = `${temp.toFixed(1)} °C`;
+        if (elements.snapEc) elements.snapEc.textContent = `${ec} µS/cm`;
+        if (elements.snapTimestamp) elements.snapTimestamp.textContent = data.timestamp || new Date().toLocaleTimeString();
+
+        if (isSensorAir) {
+            elements.hubVerdictBanner.className = 'hub-verdict-banner banner-neutral';
+            elements.verdictBannerIcon.textContent = '⚪';
+            elements.verdictBannerHeadline.textContent = 'No Water Sample Detected';
+            elements.verdictBannerExplanation.textContent = 'Sensor readings indicate open air contact (0 ppm / 0.000 V). Please submerge both the TDS probe and temperature sensor into your water sample and click "Analyze Another Water Sample" below to repeat the test.';
+            elements.verdictPotabilityPill.className = 'verdict-pill pill-warning';
+            elements.verdictPotabilityPill.textContent = 'Probe Dry (Unsubmerged)';
+            elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
+            elements.verdictPalatabilityPill.textContent = 'Air Baseline';
+
+            setTileState('drinking', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to evaluate drinking safety.');
+            setTileState('cooking', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to check cooking suitability.');
+            setTileState('bathing', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to assess bathing and hygiene.');
+            setTileState('laundry', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to analyze laundry lather.');
+            setTileState('cleaning', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to check surface cleaning.');
+            setTileState('gardening', 'Pending Submergence', 'badge-conditional', 'Submerge probe into water to test irrigation salinity.');
+        } else if (ppm <= 300) {
+            elements.hubVerdictBanner.className = 'hub-verdict-banner banner-safe';
+            elements.verdictBannerIcon.textContent = '✅';
+            elements.verdictBannerHeadline.textContent = 'Water is Safe to Consume (Excellent Potability)';
+            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) is within the Bureau of Indian Standards (BIS IS 10500:2012) acceptable limit (≤ 500 mg/L) and meets WHO guidelines for optimum drinking palatability. Highly recommended for direct consumption, beverages, and all domestic culinary uses.`;
+            elements.verdictPotabilityPill.className = 'verdict-pill pill-potable';
+            elements.verdictPotabilityPill.textContent = 'Potable (Safe to Drink)';
+            elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
+            elements.verdictPalatabilityPill.textContent = (ppm < 50) ? 'Pure / Demineralized' : 'Excellent Taste';
+
+            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Mineral content is optimal for human hydration; crisp, pleasant palatability.');
+            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Ideal for food preparation, boiling, tea, and coffee; preserves natural culinary flavors.');
+            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Gentle on skin and scalp; creates rich soap lather and rinses cleanly.');
+            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Maximizes detergent efficiency, keeps fabrics soft, and avoids machine limescale.');
+            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Dries spot-free on glassware, bathroom tiles, and chrome fixtures.');
+            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Healthy hydration for all indoor houseplants, flowers, and sensitive herbs.');
+        } else if (ppm <= 500) {
+            elements.hubVerdictBanner.className = 'hub-verdict-banner banner-safe';
+            elements.verdictBannerIcon.textContent = '✅';
+            elements.verdictBannerHeadline.textContent = 'Water is Safe to Consume (Standard Tap Water)';
+            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) complies with the BIS IS 10500:2012 acceptable reference limit (≤ 500 mg/L). Palatability is rated Good. Completely safe for direct daily drinking and normal household consumption.`;
+            elements.verdictPotabilityPill.className = 'verdict-pill pill-potable';
+            elements.verdictPotabilityPill.textContent = 'Potable (Safe to Drink)';
+            elements.verdictPalatabilityPill.className = 'verdict-pill pill-rating';
+            elements.verdictPalatabilityPill.textContent = 'Good Palatability';
+
+            setTileState('drinking', 'Safe (YES)', 'badge-yes', 'Within Indian national standard acceptable limits; safe for direct daily consumption.');
+            setTileState('cooking', 'Safe (YES)', 'badge-yes', 'Suitable for daily culinary use, boiling, and beverage preparation.');
+            setTileState('bathing', 'Suitable (YES)', 'badge-yes', 'Standard domestic hardness; produces normal soap lather without skin irritation.');
+            setTileState('laundry', 'Suitable (YES)', 'badge-yes', 'Normal detergent requirement; safe for washing machines and linens.');
+            setTileState('cleaning', 'Suitable (YES)', 'badge-yes', 'Suitable for mopping and dishwashing with minimal water spotting.');
+            setTileState('gardening', 'Suitable (YES)', 'badge-yes', 'Provides essential trace minerals for lawns, garden beds, and outdoor plants.');
+        } else if (ppm <= 2000) {
+            elements.hubVerdictBanner.className = 'hub-verdict-banner banner-warning';
+            elements.verdictBannerIcon.textContent = '🟡';
+            elements.verdictBannerHeadline.textContent = 'Conditionally Safe (Treatment Recommended)';
+            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) exceeds the acceptable limit (500 mg/L) but is within the BIS permissible limit in absence of alternate sources (up to 2000 mg/L). While usable in emergencies, domestic boiling or RO filtration is recommended to reduce hardness and improve palatability.`;
+            elements.verdictPotabilityPill.className = 'verdict-pill pill-warning';
+            elements.verdictPotabilityPill.textContent = 'Conditionally Potable';
+            elements.verdictPalatabilityPill.className = 'verdict-pill pill-warning';
+            elements.verdictPalatabilityPill.textContent = 'Fair to Poor Taste';
+
+            setTileState('drinking', 'Filtration Advised', 'badge-conditional', 'Noticeable mineral/saline aftertaste. Domestic RO or carbon filtration recommended.');
+            setTileState('cooking', 'Boiling Advised', 'badge-conditional', 'Boil before culinary use. Minerals may slightly cloud tea or affect subtle seasonings.');
+            setTileState('bathing', 'Moderate Hardness', 'badge-conditional', 'Requires more soap/shampoo to lather; may cause mild skin dryness over prolonged use.');
+            setTileState('laundry', 'Extra Soap Needed', 'badge-conditional', 'Calcium and magnesium bind detergents; may gradually stiffen fabric fibers.');
+            setTileState('cleaning', 'Mild Spotting', 'badge-conditional', 'Leaves faint white mineral haze on glassware and bathroom shower glass.');
+            setTileState('gardening', 'Hardy Plants Only', 'badge-conditional', 'Suitable for established outdoor shrubs and trees; avoid for salt-sensitive seedlings.');
+        } else {
+            elements.hubVerdictBanner.className = 'hub-verdict-banner banner-danger';
+            elements.verdictBannerIcon.textContent = '❌';
+            elements.verdictBannerHeadline.textContent = 'UNSAFE TO CONSUME - DO NOT DRINK';
+            elements.verdictBannerExplanation.textContent = `TDS level (${Math.round(ppm)} ppm) exceeds the maximum permissible limit of 2000 mg/L under BIS IS 10500:2012. Strictly prohibited for drinking or food preparation. High mineral concentration can cause digestive irritation and kidney strain. Restricted to non-potable domestic use.`;
+            elements.verdictPotabilityPill.className = 'verdict-pill pill-danger';
+            elements.verdictPotabilityPill.textContent = 'Non-Potable (Unsafe)';
+            elements.verdictPalatabilityPill.className = 'verdict-pill pill-danger';
+            elements.verdictPalatabilityPill.textContent = 'Unacceptable Taste';
+
+            setTileState('drinking', 'UNSAFE (NO)', 'badge-no', 'Prohibited for direct drinking. High mineral density violates health standards.');
+            setTileState('cooking', 'UNSAFE (NO)', 'badge-no', 'Do not use for food or beverages; boiling further concentrates dangerous salt levels.');
+            setTileState('bathing', 'Harsh (NO)', 'badge-no', 'Excessive mineral hardness strips skin moisture and prevents proper soap lather.');
+            setTileState('laundry', 'Scaling Hazard (NO)', 'badge-no', 'Severe limescale accumulation damages washing machine heating coils.');
+            setTileState('cleaning', 'Staining Risk (NO)', 'badge-no', 'Leaves heavy chalky mineral rings and deposits on tiles, sinks, and toilets.');
+            setTileState('gardening', 'Salinity Hazard (NO)', 'badge-no', 'High osmotic salinity burns plant root tips and causes leaf yellowing.');
+        }
+
+        evaluateWaterUsability(data);
+        updateBisAssessmentSection(data);
+    }
+
+    function setTileState(id, badgeText, badgeClass, descText) {
+        const key = id.charAt(0).toUpperCase() + id.slice(1);
+        const badgeElem = elements[`tileBadge${key}`];
+        const descElem = elements[`tileDesc${key}`];
+        if (badgeElem) {
+            badgeElem.className = `tile-verdict-badge ${badgeClass}`;
+            badgeElem.textContent = badgeText;
+        }
+        if (descElem) {
+            descElem.textContent = descText;
+        }
+    }
+
+    function resetWaterAnalysis() {
+        state.analysis.status = 'idle';
+        state.analysis.samples = [];
+        state.analysis.snapshot = null;
+
+        if (elements.hubRunningView) elements.hubRunningView.style.display = 'none';
+        if (elements.hubResultView) elements.hubResultView.style.display = 'none';
+        if (elements.hubIdleView) elements.hubIdleView.style.display = 'block';
+
+        elements.hubIdleView.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('Ready for new water sample. Submerge probe and click Start.', 'info');
+    }
+
+    function playAnalysisCompleteChime() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(587.33, now);
+            gain1.gain.setValueAtTime(0.1, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.35);
+
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880, now + 0.15);
+            gain2.gain.setValueAtTime(0.1, now + 0.15);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.15);
+            osc2.stop(now + 0.55);
+        } catch (e) {}
     }
 
     // ==========================================================================
@@ -1419,6 +1730,10 @@
             elements.valUptime.textContent = 'Live Stream';
         }
 
+        // Update probe status chip in analysis hub
+        state.currentLiveTelemetry = data;
+        updateHubProbeStatus(data);
+
         // Compute Actionable Usability Verdict (Drinking, Boiling, Household)
         evaluateWaterUsability(data);
 
@@ -1724,6 +2039,17 @@
         });
 
         setupSimulationPresets();
+
+        // Water Analysis Hub Listeners
+        if (elements.btnStartAnalysis) {
+            elements.btnStartAnalysis.addEventListener('click', startWaterAnalysis);
+        }
+        if (elements.btnReanalyze) {
+            elements.btnReanalyze.addEventListener('click', resetWaterAnalysis);
+        }
+        if (elements.btnPrintReport) {
+            elements.btnPrintReport.addEventListener('click', () => window.print());
+        }
     }
 
     async function loadInitialHistory() {

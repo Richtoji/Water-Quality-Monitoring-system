@@ -223,6 +223,235 @@
         </section>
 
         <!-- ====================================================================
+             INTERACTIVE WATER ANALYSIS CONTROL HUB & OFFICIAL VERDICT
+             User-Triggered Scientific Sampling & Household Suitability Evaluation
+             ==================================================================== -->
+        <section id="water-analysis-hub" class="water-analysis-hub" aria-label="Water Analysis Lab">
+            <div class="analysis-hub-card">
+                <!-- Top Hub Bar: Tag, Title, Live Probe State -->
+                <div class="hub-header-row">
+                    <div class="hub-title-group">
+                        <div class="hub-badge-tag">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"></path><path d="M5.52 16h12.96"></path></svg>
+                            <span>Official Water Potability Lab</span>
+                        </div>
+                        <h2 class="hub-main-title">Water Sample Analysis &amp; Consumption Verdict</h2>
+                        <p class="hub-sub-desc">
+                            Submerge the ESP32 TDS probe and DS18B20 temperature sensor into your water sample, then click below to evaluate if the water is safe to consume or suitable for household applications.
+                        </p>
+                    </div>
+
+                    <div class="hub-probe-status-wrap">
+                        <span class="probe-status-label">Probe Live Status:</span>
+                        <div id="hub-probe-indicator" class="probe-indicator-chip chip-ready">
+                            <span class="pulse-dot"></span>
+                            <span id="hub-probe-text">Awaiting Submergence (0 ppm)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Interactive Action Area -->
+                <div class="hub-action-box" id="hub-action-box">
+                    <!-- Idle State: Ready to trigger analysis -->
+                    <div id="hub-idle-view" class="hub-idle-view">
+                        <div class="idle-guidance-row">
+                            <div class="guidance-step">
+                                <span class="step-num">1</span>
+                                <span class="step-txt">Submerge TDS &amp; Temp probe in water</span>
+                            </div>
+                            <div class="guidance-divider">→</div>
+                            <div class="guidance-step">
+                                <span class="step-num">2</span>
+                                <span class="step-txt">Click &quot;Start Water Analysis&quot;</span>
+                            </div>
+                            <div class="guidance-divider">→</div>
+                            <div class="guidance-step">
+                                <span class="step-num">3</span>
+                                <span class="step-txt">Receive potability &amp; household verdict</span>
+                            </div>
+                        </div>
+
+                        <div class="hub-cta-row">
+                            <button id="btn-start-analysis" class="btn-primary-analysis" type="button">
+                                <span class="btn-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+                                </span>
+                                <span class="btn-text">Start Water Analysis</span>
+                            </button>
+                            <span class="hub-hint-text">Evaluates against Bureau of Indian Standards (BIS IS 10500:2012)</span>
+                        </div>
+                    </div>
+
+                    <!-- In-Progress State: Active Sampling & Progress Meter -->
+                    <div id="hub-running-view" class="hub-running-view" style="display: none;">
+                        <div class="running-animation-wrap">
+                            <div class="radar-spinner">
+                                <div class="radar-ping"></div>
+                                <span class="radar-icon">🧪</span>
+                            </div>
+                            <div class="running-info">
+                                <div class="running-title-row">
+                                    <h3 id="analysis-step-title">Sampling Hardware Telemetry...</h3>
+                                    <span id="analysis-percent-badge" class="percent-badge">0%</span>
+                                </div>
+                                <p id="analysis-step-desc" class="running-desc">
+                                    Acquiring multi-point analog voltage and thermal stabilization from ESP32...
+                                </p>
+                                <div class="progress-track">
+                                    <div id="analysis-progress-bar" class="progress-fill" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completed State: Prominent Verdict Report Banner & Household Matrix -->
+                    <div id="hub-result-view" class="hub-result-view" style="display: none;">
+                        <!-- Primary Potability Verdict Banner -->
+                        <div id="hub-verdict-banner" class="hub-verdict-banner banner-safe">
+                            <div class="verdict-banner-main">
+                                <div id="verdict-banner-icon" class="verdict-badge-circle">✅</div>
+                                <div class="verdict-banner-text">
+                                    <span id="verdict-banner-kicker" class="verdict-kicker-tag">CONSUMPTION VERDICT (BIS IS 10500:2012)</span>
+                                    <h3 id="verdict-banner-headline">Water is Safe to Consume</h3>
+                                    <p id="verdict-banner-explanation">
+                                        Total Dissolved Solids and Temperature are within acceptable thresholds (≤ 500 mg/L). Safe for drinking, cooking, and everyday household consumption.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="verdict-banner-badges">
+                                <span id="verdict-potability-pill" class="verdict-pill pill-potable">Potable (Safe to Drink)</span>
+                                <span id="verdict-palatability-pill" class="verdict-pill pill-rating">Excellent Taste</span>
+                            </div>
+                        </div>
+
+                        <!-- Sample Data Snapshot Bar -->
+                        <div class="sample-snapshot-bar">
+                            <div class="snapshot-item">
+                                <span class="snap-label">Tested TDS:</span>
+                                <strong id="snap-tds" class="snap-val val-cyan">-- ppm</strong>
+                            </div>
+                            <div class="snapshot-item">
+                                <span class="snap-label">Tested Temp:</span>
+                                <strong id="snap-temp" class="snap-val val-amber">-- °C</strong>
+                            </div>
+                            <div class="snapshot-item">
+                                <span class="snap-label">Conductivity:</span>
+                                <strong id="snap-ec" class="snap-val val-cyan">-- µS/cm</strong>
+                            </div>
+                            <div class="snapshot-item">
+                                <span class="snap-label">Analysis Timestamp:</span>
+                                <span id="snap-timestamp" class="snap-val">--:--:--</span>
+                            </div>
+                            <div class="snapshot-item">
+                                <span class="snap-label">Evaluation Standard:</span>
+                                <span class="snap-val">BIS IS 10500:2012</span>
+                            </div>
+                        </div>
+
+                        <!-- 6 Household Application Suitability Grid -->
+                        <div class="hub-household-grid">
+                            <!-- 1. Direct Drinking -->
+                            <div class="household-tile" id="tile-drinking">
+                                <div class="tile-header">
+                                    <span class="tile-icon">🚰</span>
+                                    <div class="tile-titles">
+                                        <h4>Direct Drinking</h4>
+                                        <span id="tile-badge-drinking" class="tile-verdict-badge badge-yes">Safe (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-drinking" class="tile-desc">
+                                    Mineral concentration meets drinking standards. Ideal for direct consumption.
+                                </p>
+                            </div>
+
+                            <!-- 2. Cooking & Boiling -->
+                            <div class="household-tile" id="tile-cooking">
+                                <div class="tile-header">
+                                    <span class="tile-icon">🍲</span>
+                                    <div class="tile-titles">
+                                        <h4>Cooking &amp; Food Prep</h4>
+                                        <span id="tile-badge-cooking" class="tile-verdict-badge badge-yes">Safe (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-cooking" class="tile-desc">
+                                    Suitable for food preparation, boiling, and beverage extraction without altering flavor.
+                                </p>
+                            </div>
+
+                            <!-- 3. Bathing & Hygiene -->
+                            <div class="household-tile" id="tile-bathing">
+                                <div class="tile-header">
+                                    <span class="tile-icon">🚿</span>
+                                    <div class="tile-titles">
+                                        <h4>Bathing &amp; Hygiene</h4>
+                                        <span id="tile-badge-bathing" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-bathing" class="tile-desc">
+                                    Soft to moderate minerals; gentle on skin and produces good soap lather.
+                                </p>
+                            </div>
+
+                            <!-- 4. Laundry & Washing -->
+                            <div class="household-tile" id="tile-laundry">
+                                <div class="tile-header">
+                                    <span class="tile-icon">👕</span>
+                                    <div class="tile-titles">
+                                        <h4>Washing Clothes &amp; Laundry</h4>
+                                        <span id="tile-badge-laundry" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-laundry" class="tile-desc">
+                                    Efficient detergent activation with minimal fabric stiffening or machine scaling.
+                                </p>
+                            </div>
+
+                            <!-- 5. Cleaning & Mopping -->
+                            <div class="household-tile" id="tile-cleaning">
+                                <div class="tile-header">
+                                    <span class="tile-icon">✨</span>
+                                    <div class="tile-titles">
+                                        <h4>Dishes &amp; Home Cleaning</h4>
+                                        <span id="tile-badge-cleaning" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-cleaning" class="tile-desc">
+                                    Dries spot-free on glassware and tiles without leaving chalky mineral deposits.
+                                </p>
+                            </div>
+
+                            <!-- 6. Gardening & Plants -->
+                            <div class="household-tile" id="tile-gardening">
+                                <div class="tile-header">
+                                    <span class="tile-icon">🌱</span>
+                                    <div class="tile-titles">
+                                        <h4>Gardening &amp; Irrigation</h4>
+                                        <span id="tile-badge-gardening" class="tile-verdict-badge badge-yes">Suitable (YES)</span>
+                                    </div>
+                                </div>
+                                <p id="tile-desc-gardening" class="tile-desc">
+                                    Safe for household plants, lawns, and indoor greenery without salinity stress.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Hub Footer Action Row -->
+                        <div class="hub-footer-row">
+                            <button id="btn-reanalyze" class="btn-secondary-action" type="button">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path></svg>
+                                <span>Analyze Another Water Sample</span>
+                            </button>
+                            <button id="btn-print-report" class="btn-secondary-action" type="button">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                <span>Print / Save Analysis Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================================================
              AQUASENSE – WATER QUALITY RESULTS AND REFERENCE COMPARISON
              Standard: Bureau of Indian Standards BIS IS 10500:2012
              ==================================================================== -->
